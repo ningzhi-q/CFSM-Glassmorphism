@@ -82,10 +82,16 @@ describe('设置页字段注册表与上游清单一致', () => {
     )
   })
 
-  it('每个分组内的字段顺序与上游一致', () => {
+  it('保留上游字段顺序，用户新增排序字段单独核验', () => {
     for (const [index, group] of UPSTREAM_GROUPS.entries()) {
-      expect(THEME_SETTINGS_FORM[index]?.fields.map((field) => field.key)).toEqual(group.keys)
+      expect(THEME_SETTINGS_FORM[index]?.fields.filter(field => field.key !== 'groupOrder').map((field) => field.key)).toEqual(group.keys)
     }
+  })
+
+  it('用户新增分组排序放在首页布局，完整名称按行编辑', () => {
+    const field = THEME_SETTINGS_FORM[1]?.fields.find(item => item.key === 'groupOrder')
+    expect(field?.kind).toBe('textarea')
+    expect(field?.help).toContain('每行一个完整分组名')
   })
 
   it('除两项待办外，每项设置都有且只有一个控件', () => {

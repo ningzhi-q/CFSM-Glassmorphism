@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import type { DashboardViewMode } from '@/types/glassmorphism'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppTabs from '@/components/ui/AppTabs.vue'
 import { ALL_GROUPS } from '@/domain/dashboard'
 import type { QuickControlKey } from '@/domain/theme-presentation'
 import type { IconName } from '@/constants/icons'
+import { orderedGroups } from '@/domain/group-order'
+import { useThemeSettingsStore } from '@/stores/theme-settings'
 
 /**
  * 对齐 Komari 首页控制行。
@@ -39,12 +41,15 @@ const emit = defineEmits<{
 }>()
 
 const searchFocused = ref(false)
+const groupOrderOpen = ref(false)
+const theme = useThemeSettingsStore()
+const GroupOrderDialog = defineAsyncComponent(() => import('@/components/dashboard/GroupOrderDialog.vue'))
 // 与上游一致：无内容且未聚焦时只保留图标宽度，聚焦或有内容才展开。
 const searchExpanded = computed(() => searchFocused.value || props.query.length > 0)
 
 const groupTabs = computed(() => [
   { value: ALL_GROUPS, label: '全部节点' },
-  ...props.groups.map((item) => ({ value: item, label: item })),
+  ...orderedGroups(props.groups, theme.runtime.groupOrder).map((item) => ({ value: item, label: item })),
 ])
 
 const quickLabels: Record<QuickControlKey, { icon: IconName, label: string }> = {
@@ -98,6 +103,11 @@ function clearSearch(): void {
     </div>
 
     <div class="dashboard-controls__actions">
+      <div v-if="groups.length > 1" class="tool-switch">
+        <button type="button" aria-label="分组自定义排序" title="分组自定义排序" @click="groupOrderOpen = true">
+          <AppIcon name="tabler:arrows-transfer-up-down" :size="14" />
+        </button>
+      </div>
       <div v-if="toolsAvailable" class="tool-switch">
         <button
           type="button"
@@ -158,4 +168,5 @@ function clearSearch(): void {
       </div>
     </div>
   </section>
+  <GroupOrderDialog v-if="groupOrderOpen" v-model:open="groupOrderOpen" :groups="groups" />
 </template>

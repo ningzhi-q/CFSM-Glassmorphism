@@ -51,9 +51,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 describe('theme settings schema', () => {
-  it('normalizes all 48 audited fields across defaults, backend and local layers', () => {
-    expect(THEME_SETTING_KEYS).toHaveLength(48)
-    expect(Object.keys(createThemeOptionsSnapshot(resolveThemeSettings({}, {})))).toHaveLength(48)
+  it('normalizes the 48 upstream fields and custom group order across three layers', () => {
+    expect(THEME_SETTING_KEYS).toHaveLength(49)
+    expect(Object.keys(createThemeOptionsSnapshot(resolveThemeSettings({}, {})))).toHaveLength(49)
     const backend = {
       themeMode: 'dark',
       offlineNodesLast: false,

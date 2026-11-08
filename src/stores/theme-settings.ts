@@ -359,11 +359,12 @@ export const useThemeSettingsStore = defineStore('theme-settings', () => {
   function setLocalSetting<Key extends keyof ThemeSettings>(
     key: Key,
     value: ThemeSettings[Key],
-  ): void {
+  ): boolean {
     localOverrides.value = { ...localOverrides.value, [key]: value }
-    persistOverrides()
+    const stored = persistOverrides()
     previewing.value = false
     rebuildFromLayers(true)
+    return stored
   }
 
   function setDashboardViewMode(nextViewMode: DashboardViewMode): void {
@@ -528,6 +529,9 @@ export const useThemeSettingsStore = defineStore('theme-settings', () => {
   }
 
   function saveBackend(base: string, options: ThemeSaveOptions = {}): Promise<ThemeSaveOutcome> {
+    if (saveState.value === 'saving' && !saveInFlight) {
+      return Promise.resolve({ saved: false, config: null, refetchWarning: null })
+    }
     // 同一草稿的同步双击共用结果；新草稿或新来源必须明确拒绝，保留编辑待重试。
     if (saveInFlight) {
       if (saveInFlightBase === base && saveInFlightDraft && themeSettingsEqual(draft.value, saveInFlightDraft)) {
@@ -561,6 +565,51 @@ export const useThemeSettingsStore = defineStore('theme-settings', () => {
       },
     )
     return pending
+  }
+
+  /** 首页只提交分组顺序；其它设置从最新后端快照取得，不上传访客的本地偏好。 */
+  async function saveGroupOrderBackend(
+    base: string,
+    order: string,
+    options: ThemeSaveOptions = {},
+  ): Promise<ThemeSaveOutcome> {
+    if (saveState.value === 'saving') return { saved: false, config: null, refetchWarning: null }
+    const requestOptions = { ...options, storage: options.storage ?? activeStorage }
+    hasBackendCredential.value = hasStoredJwt(requestOptions.storage)
+    if (!hasBackendCredential.value) {
+      saveError.value = { kind: 'unauthorized', status: 401, code: 'missingJwt', message: '需要登录管理员后保存。' }
+      return { saved: false, config: null, refetchWarning: null }
+    }
+    saveState.value = 'saving'
+    saveError.value = null
+    message.value = null
+    refetchWarning.value = null
+    try {
+      const latest = await fetchSiteConfig(base, requestOptions)
+      const settings = resolveThemeSettings(latest.themeOptions, { groupOrder: order }, latest.preferredTheme)
+      const result = await saveThemeOptions(createThemeOptionsSnapshot(settings, latest.themeOptions), base, requestOptions)
+      if (!result.success) throw new Error(result.message ?? 'CFSM 未确认保存结果')
+      backendRaw.value = recordValue(result.themeOptions)
+      localOverrides.value = withoutKey(localOverrides.value, 'groupOrder')
+      const stored = persistOverrides()
+      rebuildFromLayers()
+      message.value = stored ? '分组顺序已设为站点默认。' : '站点已保存，但本浏览器无法清除旧顺序，刷新后可能恢复。'
+    } catch (error) {
+      saveState.value = 'error'
+      saveError.value = saveFailure(error)
+      return { saved: false, config: null, refetchWarning: null }
+    }
+    try {
+      const config = await fetchSiteConfig(base, requestOptions)
+      hydrateBackend(config.themeOptions, config.preferredTheme)
+      saveState.value = 'success'
+      return { saved: true, config, refetchWarning: null }
+    } catch (error) {
+      const warning = error instanceof Error ? error.message : '重新读取配置失败'
+      refetchWarning.value = warning
+      saveState.value = 'success'
+      return { saved: true, config: null, refetchWarning: warning }
+    }
   }
 
   function clearStatus(): void {
@@ -609,6 +658,7 @@ export const useThemeSettingsStore = defineStore('theme-settings', () => {
     saveLocal,
     useBackend,
     saveBackend,
+    saveGroupOrderBackend,
     clearStatus,
   }
 })

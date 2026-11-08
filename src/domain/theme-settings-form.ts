@@ -14,7 +14,7 @@ import type { ThemeSettings } from '@/theme/settings'
  *
  * CFSM 公开接口确实不提供的两项（`rpcTransportMode`、`visitorInfoEnabled`）不在这张表里：
  * 设置页不渲染它们，避免出现点了没反应的控件。两项仍留在 `theme/settings.ts` 的 48 项
- * schema 与保存快照中（保存协议要求发送完整对象）；最终稳定版决定保留，见 `docs/todo.md` TODO-02。
+ * 上游字段与保存快照中（加上用户增强 groupOrder 共 49 项；保存协议要求发送完整对象）；最终稳定版决定保留，见 `docs/todo.md` TODO-02。
  */
 
 export type ThemeFieldKind = 'select' | 'switch' | 'text' | 'password' | 'number' | 'textarea'
@@ -144,6 +144,14 @@ export const THEME_SETTINGS_FORM: readonly ThemeFieldGroup[] = [
         label: '启用公告',
         kind: 'switch',
         help: '在首页显示自定义公告。',
+      },
+      {
+        key: 'groupOrder',
+        label: '分组自定义排序',
+        kind: 'textarea',
+        rows: 4,
+        wide: true,
+        help: '每行一个完整分组名，按从上到下的顺序显示。全部节点固定最前，未列出的分组接在后面；留空恢复默认排序。首页分组栏的排序按钮也可以上下调整。',
       },
       {
         key: 'alertTitle',

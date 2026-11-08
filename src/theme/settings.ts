@@ -1,4 +1,5 @@
 import type { DashboardThemeMode, DashboardViewMode } from '@/types/glassmorphism'
+import { parseGroupOrder } from '@/domain/group-order'
 
 export const THEME_SETTINGS_STORAGE_KEY = 'cfsm-glassmorphism.theme-options.v1'
 export const LEGACY_DASHBOARD_STORAGE_KEY = 'cfsm-glassmorphism.dashboard.v1'
@@ -17,6 +18,7 @@ export interface ThemeSettings {
   rpcTransportMode: 'http'
   defaultViewMode: 'card' | 'list'
   nodeCardSize: NodeCardSize
+  groupOrder: string
   alertEnabled: boolean
   alertTitle: string
   alertContent: string
@@ -68,6 +70,7 @@ export const THEME_SETTING_KEYS = [
   'rpcTransportMode',
   'defaultViewMode',
   'nodeCardSize',
+  'groupOrder',
   'alertEnabled',
   'alertTitle',
   'alertContent',
@@ -148,6 +151,7 @@ export const DEFAULT_THEME_SETTINGS: Readonly<ThemeSettings> = Object.freeze({
   rpcTransportMode: 'http',
   defaultViewMode: 'card',
   nodeCardSize: 'compact',
+  groupOrder: '',
   alertEnabled: false,
   alertTitle: '',
   alertContent: '',
@@ -398,6 +402,7 @@ export function normalizeThemeSettingsLayer(
     rpcTransportMode: 'http',
     defaultViewMode: oneOf(input.defaultViewMode, ['card', 'list'], fallback.defaultViewMode),
     nodeCardSize: oneOf(input.nodeCardSize, ['mini', 'compact', 'comfortable', 'large'], fallback.nodeCardSize),
+    groupOrder: typeof input.groupOrder === 'string' ? parseGroupOrder(input.groupOrder).join('\n') : fallback.groupOrder,
     alertEnabled: booleanValue(input.alertEnabled, fallback.alertEnabled),
     alertTitle: textValue(input.alertTitle, fallback.alertTitle),
     alertContent: textValue(input.alertContent, fallback.alertContent),
@@ -464,6 +469,7 @@ export function serializeThemeSettings(settings: ThemeSettings): Record<string, 
     rpcTransportMode: 'http',
     defaultViewMode: settings.defaultViewMode,
     nodeCardSize: settings.nodeCardSize,
+    groupOrder: settings.groupOrder,
     alertEnabled: settings.alertEnabled,
     alertTitle: settings.alertTitle,
     alertContent: settings.alertContent,
