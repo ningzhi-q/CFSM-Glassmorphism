@@ -4,6 +4,8 @@ import type { GlassServer } from '@/types/glassmorphism'
 import type { NodeCardSize } from '@/theme/settings'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppProgressThin from '@/components/ui/AppProgressThin.vue'
+import AppTooltip from '@/components/ui/AppTooltip.vue'
+import { loadCapacityPercent } from '@/domain/node-metrics'
 import { resolveRegionCoordinates } from '@/domain/advanced-tools'
 import { probeSeriesFor, windowAverage, type ProbeSeriesMap } from '@/domain/probe-window'
 import {
@@ -30,13 +32,13 @@ import {
   MISSING_TEXT,
   normalizeTimestampMilliseconds,
 } from '@/utils/format'
-import { trafficStatus, trafficTextTone, usageStatus } from '@/utils/progress-status'
+import { trafficTextTone, usageStatus } from '@/utils/progress-status'
 
 /**
  * 对齐 Komari `NodeCard` 的节点卡片。
  *
  * 区块顺序与上游一致：状态点 + 名称 / 收藏 + OS + 旗帜 / 运行与价格芯片 /
- * CPU·内存·硬盘·流量四项进度 / 网速·总流量·剩余或负载三列指标盒 /
+ * CPU·内存·硬盘·负载四项进度 / 网速·累计上下行·配额流量三列指标盒 /
  * 延迟与丢包双面板 / 自定义标签 / 离线遮罩。
  *
  * 数据全部来自既有 normalized model，不解析 wire payload，也不补造缺失值。
@@ -54,6 +56,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   open: []
   toggleFavorite: []
+  probe: [metric: 'latency' | 'loss']
 }>()
 
 const isMini = computed(() => props.density === 'mini')
@@ -70,6 +73,9 @@ const trafficView = computed(() => trafficDisplay(props.server))
 const trafficPercent = computed(() => trafficDisplayPercent(trafficView.value))
 const trafficTone = computed(() => trafficTextTone(trafficPercent.value))
 const trafficCritical = computed(() => trafficPercent.value !== null && trafficPercent.value >= 95)
+const loadPercent = computed(() => loadCapacityPercent(props.server.load.one, props.server.cpuCores))
+const loadTooltip = computed(() => `最近 1 / 5 / 15 分钟平均负载：${formatLoad(props.server.load.one)} / ${formatLoad(props.server.load.five)} / ${formatLoad(props.server.load.fifteen)}。`
+  + (props.server.cpuCores && props.server.cpuCores > 0 ? `进度条按 ${props.server.cpuCores} 核容量计算，100% 表示平均每核有一个运行或等待任务。` : '未提供核心数，不计算负载进度。'))
 
 /** 上游内存格挂 `Swap 已用 … / 总计 …` 的 title；CFSM 没有上报 Swap 时不挂，不写成 0。 */
 const swapTooltip = computed(() => {
@@ -101,11 +107,6 @@ const expireVisible = computed(() => props.server.showExpire && daysUntilExpiry(
  * 没有可显示到期日的付费节点：上游 NodeCard 仍画两行（`-` 与剩余价值），但它把未知到期的
  * 剩余价值算成 0，显示成「€0」。这里保留同样的两行结构，第二行如实为占位，不写成 0。
  */
-const hasPublicPositivePrice = computed(() => {
-  if (!props.priceVisible || !props.server.showPrice) return false
-  const price = Number(props.server.price)
-  return Number.isFinite(price) && price > 0
-})
 const expiryInfo = computed(() => {
   const days = daysUntilExpiry(props.server.expireDate)
   if (days === null) return { text: MISSING_TEXT, prefix: '', value: '', unit: '', tone: 'neutral' }
@@ -149,6 +150,10 @@ const offlineText = computed(() => {
 const chips = computed(() => {
   const list: string[] = [uptimeText.value]
   if (priceText.value) list.push(priceText.value)
+  if (expireVisible.value) {
+    list.push(expiryFullText.value)
+    if (remainingValueText.value) list.push(`剩余价值 ${remainingValueText.value}`)
+  }
   if (props.showSource) list.push(props.server.sourceLabel)
   return list
 })
@@ -181,12 +186,14 @@ function lossToneClass(loss: number): string {
 interface PingBar {
   key: string
   className: string
+  tooltip: string
 }
 
 function emptyBars(metric: string): PingBar[] {
   return Array.from({ length: EMPTY_PING_BAR_COUNT }, (_, index) => ({
     key: `${metric}-empty-${index}`,
     className: 'is-empty',
+    tooltip: '暂无探测采样',
   }))
 }
 
@@ -254,6 +261,7 @@ function buildBars(
   return points.map((point, index) => ({
     key: `${metric}-${point.timestamp}-${index}`,
     className: typeof point.value === 'number' ? tone(point.value) : 'is-gap',
+    tooltip: `${new Date(normalizeTimestampMilliseconds(point.timestamp) ?? point.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}\n${typeof point.value === 'number' ? (metric === 'latency' ? formatLatency(point.value) : formatProbePercent(point.value)) : point.value === false ? '探测未配置' : '该时间段暂无采样'}`,
   }))
 }
 
@@ -375,18 +383,16 @@ function hideMissingImage(event: Event): void {
           </div>
         </div>
 
-        <div class="node-metric">
+        <div class="node-metric" :title="loadTooltip" data-node-metric="load">
           <div class="node-metric__head">
-            <span class="node-metric__label node-metric__label--traffic">
-              <AppIcon name="tabler:arrows-transfer-up-down" :size="12" /><span>流量</span>
+            <span class="node-metric__label node-metric__label--load">
+              <AppIcon name="tabler:activity" :size="13" /><span>负载</span>
             </span>
-            <span class="node-metric__value" :class="`node-metric__value--${trafficTone}`">
-              {{ trafficHeadText(trafficView) }}
-            </span>
+            <span class="node-metric__value">{{ formatLoad(server.load.one) }}</span>
           </div>
-          <AppProgressThin :percentage="trafficPercent" :status="trafficStatus(trafficPercent)" />
-          <div class="node-metric__hint" :class="{ 'node-metric__hint--danger': trafficCritical }">
-            {{ trafficRatioText(trafficView) }}
+          <AppProgressThin :percentage="loadPercent" :status="usageStatus(loadPercent)" />
+          <div class="node-metric__hint" :title="loadTooltip">
+            5分 {{ formatLoad(server.load.five) }} · 15分 {{ formatLoad(server.load.fifteen) }}
           </div>
         </div>
       </div>
@@ -401,7 +407,7 @@ function hideMissingImage(event: Event): void {
           </div>
           <AppProgressThin :percentage="server.cpu" :status="usageStatus(server.cpu)" />
           <div class="node-metric__hint">
-            {{ formatLoad(server.load.one) }}, {{ formatLoad(server.load.five) }}, {{ formatLoad(server.load.fifteen) }}
+            {{ server.cpuCores === null ? MISSING_TEXT : `${server.cpuCores} 核` }}
           </div>
         </div>
 
@@ -435,18 +441,16 @@ function hideMissingImage(event: Event): void {
           </div>
         </div>
 
-        <div class="node-metric">
+        <div class="node-metric" :title="loadTooltip" data-node-metric="load">
           <div class="node-metric__head">
-            <span class="node-metric__label node-metric__label--traffic">
-              <AppIcon name="tabler:arrows-transfer-up-down" :size="13" /><span>流量</span>
+            <span class="node-metric__label node-metric__label--load">
+              <AppIcon name="tabler:activity" :size="13" /><span>负载</span>
             </span>
-            <span class="node-metric__value" :class="`node-metric__value--${trafficTone}`">
-              {{ trafficHeadText(trafficView) }}
-            </span>
+            <span class="node-metric__value">{{ formatLoad(server.load.one) }}</span>
           </div>
-          <AppProgressThin :percentage="trafficPercent" :status="trafficStatus(trafficPercent)" />
-          <div class="node-metric__hint" :class="{ 'node-metric__hint--danger': trafficCritical }">
-            {{ trafficRatioText(trafficView) }}
+          <AppProgressThin :percentage="loadPercent" :status="usageStatus(loadPercent)" />
+          <div class="node-metric__hint" :title="loadTooltip">
+            5分 {{ formatLoad(server.load.five) }} · 15分 {{ formatLoad(server.load.fifteen) }}
           </div>
         </div>
       </div>
@@ -472,60 +476,20 @@ function hideMissingImage(event: Event): void {
             <span class="node-box__text">{{ formatDisplayBytes(server.network.received) }}</span>
           </span>
         </div>
-        <div class="node-box">
-          <template v-if="expireVisible">
-            <!--
-              上游这两行用的是 `gap-0.5`（2px），不是前两个盒子的 `gap-1`（4px）。
-              三个间隙差 6px，在 303px 卡片上足以让「剩余 1653 天」被切掉。
-              整行另挂原生 title，超出时至少还能读回完整值。
-            -->
-            <span
-              class="node-box__row node-box__row--remaining"
-              :class="`node-box__row--${expiryInfo.tone}`"
-              :title="expiryFullText"
-            >
-              <AppIcon name="tabler:calendar-stats" :size="11" />
-              <span v-if="expiryInfo.text" class="node-box__text">{{ expiryInfo.text }}</span>
-              <template v-else>
-                <span class="node-box__fixed-text">{{ expiryInfo.prefix }}</span>
-                <span class="node-box__fixed-text node-box__number">{{ expiryInfo.value }}</span>
-                <span class="node-box__fixed-text">{{ expiryInfo.unit }}</span>
-              </template>
-            </span>
-            <span
-              v-if="remainingValueText"
-              class="node-box__row node-box__row--remaining"
-              :title="remainingValueText"
-            >
-              <AppIcon name="tabler:coins" :size="11" />
-              <span class="node-box__text">{{ remainingValueText }}</span>
-            </span>
-          </template>
-          <template v-else-if="hasPublicPositivePrice">
-            <span class="node-box__row node-box__row--remaining">
-              <AppIcon name="tabler:calendar-stats" :size="11" />
-              <span class="node-box__text">{{ MISSING_TEXT }}</span>
-            </span>
-            <span class="node-box__row node-box__row--remaining">
-              <AppIcon name="tabler:coins" :size="11" />
-              <span class="node-box__text">{{ MISSING_TEXT }}</span>
-            </span>
-          </template>
-          <template v-else>
-            <span class="node-box__row">
-              <span class="node-box__text">{{ formatLoad(server.load.one) }}</span>
-            </span>
-            <span class="node-box__row">
-              <span class="node-box__text">
-                {{ formatLoad(server.load.five) }} / {{ formatLoad(server.load.fifteen) }}
-              </span>
-            </span>
-          </template>
+        <div class="node-box node-box--traffic" data-node-box="traffic" :title="`流量：${trafficRatioText(trafficView)}`">
+          <span class="node-box__row">
+            <AppIcon name="tabler:arrows-transfer-up-down" :size="11" />
+            <span>流量</span>
+            <span class="node-box__text" :class="`node-metric__value--${trafficTone}`">{{ trafficHeadText(trafficView) }}</span>
+          </span>
+          <span class="node-box__row" :class="{ 'node-metric__hint--danger': trafficCritical }">
+            <span class="node-box__text">{{ trafficRatioText(trafficView) }}</span>
+          </span>
         </div>
       </div>
 
       <div v-if="primaryProbe" class="node-probes">
-        <div class="node-probe">
+        <button type="button" class="node-probe" :aria-label="`${server.name} 延迟监测`" @click.stop="emit('probe', 'latency')" @keydown.stop>
           <div class="node-probe__head" :title="latencyTitle">
             <span>延迟</span>
             <span class="node-probe__value">{{ latencyText }}</span>
@@ -534,10 +498,12 @@ function hideMissingImage(event: Event): void {
             class="node-probe__bars"
             :style="{ gridTemplateColumns: `repeat(${latencyBars.length}, minmax(0, 1fr))` }"
           >
-            <span v-for="bar in latencyBars" :key="bar.key" :class="bar.className" />
+            <AppTooltip v-for="bar in latencyBars" :key="bar.key" :content="bar.tooltip" class="node-probe__bar-tip">
+              <span :class="bar.className" />
+            </AppTooltip>
           </div>
-        </div>
-        <div class="node-probe">
+        </button>
+        <button type="button" class="node-probe" :aria-label="`${server.name} 丢包监测`" @click.stop="emit('probe', 'loss')" @keydown.stop>
           <div class="node-probe__head" :title="lossTitle">
             <span>丢包</span>
             <span class="node-probe__value">{{ lossText }}</span>
@@ -546,9 +512,11 @@ function hideMissingImage(event: Event): void {
             class="node-probe__bars"
             :style="{ gridTemplateColumns: `repeat(${lossBars.length}, minmax(0, 1fr))` }"
           >
-            <span v-for="bar in lossBars" :key="bar.key" :class="bar.className" />
+            <AppTooltip v-for="bar in lossBars" :key="bar.key" :content="bar.tooltip" class="node-probe__bar-tip">
+              <span :class="bar.className" />
+            </AppTooltip>
           </div>
-        </div>
+        </button>
       </div>
 
       <div v-if="server.tags.length > 0" class="node-tags" aria-label="节点标签">

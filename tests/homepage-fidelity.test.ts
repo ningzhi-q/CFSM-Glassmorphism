@@ -365,7 +365,7 @@ describe('v1.1.0-test.2 的成果不回退', () => {
   it('节点卡底部保持三列，文本有独立截断层，剩余天数是短文本', () => {
     expect(stylesheet).toContain('.node-boxes')
     expect(serverCard).toContain('node-box__text')
-    expect(serverCard).toContain('node-box__fixed-text')
+    expect(serverCard).toContain('data-node-box="traffic"')
     expect(serverCard).toContain("prefix: '剩余'")
     expect(serverCard).not.toContain('formatCfsmDate')
   })

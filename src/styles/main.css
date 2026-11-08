@@ -2004,6 +2004,11 @@ a {
   padding: 8px;
   border-radius: 8px;
   background: rgb(255 255 255 / 15%);
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 /* 上游离线时两块面板是 `blur-xs opacity-50`（实测 blur(4px) / 0.5）。 */
@@ -2069,7 +2074,7 @@ a {
   transition: transform 150ms ease;
 }
 
-.node-probe__bars span:hover {
+.node-probe__bar-tip:hover > span {
   transform: scaleY(1.6);
 }
 
@@ -2095,7 +2100,7 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .node-probe__bars span:hover {
+  .node-probe__bar-tip:hover > span {
     transform: none;
   }
 }
@@ -4685,6 +4690,13 @@ a {
   background: var(--emerald);
 }
 
+.settings-action--backend:hover:not(:disabled),
+.settings-action--backend:focus-visible {
+  color: white;
+  background: color-mix(in srgb, var(--emerald) 85%, black);
+  border-color: var(--emerald);
+}
+
 .settings-action--quiet {
   min-height: 34px;
   color: var(--muted);
@@ -6124,3 +6136,21 @@ a {
 
 .geography-filter { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 0.8rem; border: 1px solid var(--glass-border); border-radius: 0.75rem; background: var(--control-surface); color: var(--glass-text); }
 .geography-filter button { background: transparent; border: 0; color: var(--emerald); cursor: pointer; font: inherit; }
+
+.node-metric__label--load .app-icon { color: var(--violet); }
+.node-box--traffic .node-box__row:first-child .node-box__text { text-align: right; }
+.node-probe__bar-tip { min-width: 0; height: 100%; }
+.node-probe:focus-visible { outline: 2px solid var(--emerald); outline-offset: 2px; }
+.node-probe-dialog { display: flex; flex-direction: column; gap: 16px; }
+.node-probe-dialog__chart { height: 310px; min-width: 0; }
+.node-probe-dialog__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.node-probe-dialog__stats > div { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 8px; background: var(--glass-soft); }
+.node-probe-dialog__stats span, .node-probe-dialog__stats small, .node-probe-dialog__empty { color: var(--muted); }
+.node-probe-dialog__stats small { font-size: 11px; }
+.back-to-top { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 48px; padding: 7px; border: 1px solid var(--glass-border); border-radius: 14px; color: var(--glass-text, var(--ink)); background: var(--glass-strong); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: var(--shadow-soft); font: inherit; font-size: 10px; cursor: pointer; }
+.back-to-top:hover, .back-to-top:focus-visible { color: var(--emerald); background: var(--glass-hover); }
+
+@media (max-width: 767px) {
+  .general-stage.general-stage--tiled { min-height: 0; }
+  .general-stage.general-stage--tiled .general-stage__earth { min-height: 0; height: auto; }
+}

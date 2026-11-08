@@ -1,5 +1,17 @@
 import type { ProbeTarget } from '@/types/cfsm'
 import type { GlassLatencySample, GlassHistorySummary } from '@/types/glassmorphism'
+import { normalizeTimestampMilliseconds } from '@/utils/format'
+
+/** Charts retain missing buckets, and never turn an unconfigured probe into zero. */
+export function probeChartPoints(points: readonly GlassLatencySample[]): Array<[number, number | null]> {
+  return points.flatMap(point => {
+    const timestamp = normalizeTimestampMilliseconds(point.timestamp)
+    if (timestamp === null) return []
+    const value = typeof point.value === 'number' && Number.isFinite(point.value) && point.value >= 0
+      ? point.value : null
+    return [[timestamp, value] as [number, number | null]]
+  })
+}
 
 /*
  * 首页延迟 / 丢包小窗口的读取工具。

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import AppHeader from '@/components/dashboard/AppHeader.vue'
@@ -39,7 +39,7 @@ import { bootstrapKey } from '@/domain/bootstrap'
 import { injectedSiteTitleKey, injectedTitleForPrimary, resolveSiteTitle } from '@/domain/site-title'
 import { configReady } from '@/domain/config-readiness'
 import { issueReason } from '@/domain/issue-copy'
-import { resolveRegionCoordinates } from '@/domain/advanced-tools'
+import { serverMapLocation } from '@/domain/advanced-tools'
 import { countryName } from '@/utils/country-name'
 import type { ServerSourceFailure } from '@/types/cfsm'
 import type { DashboardSort, DashboardViewMode, GlassServer } from '@/types/glassmorphism'
@@ -54,6 +54,16 @@ const realtime = useRealtimeStore()
 const theme = useThemeSettingsStore()
 const finance = useFinanceStore()
 const router = useRouter()
+const NodeProbeDialog = defineAsyncComponent(() => import('@/components/dashboard/NodeProbeDialog.vue'))
+const probeServerKey = ref<string | null>(null)
+const probeDialogOpen = ref(false)
+const probeMetric = ref<'latency' | 'loss'>('latency')
+const probeServer = computed(() => glassServers.value.find(server => server.key === probeServerKey.value) ?? null)
+function openProbe(server: GlassServer, metric: 'latency' | 'loss'): void {
+  probeServerKey.value = server.key
+  probeMetric.value = metric
+  probeDialogOpen.value = true
+}
 const glassServerMapper = createGlassServerMapper()
 const injectedSiteTitle = inject(injectedSiteTitleKey, null)
 const bootstrap = inject(bootstrapKey, null)
@@ -141,7 +151,7 @@ const scopeServers = computed(() => {
   return servers
 })
 function serverCountry(server: GlassServer): string | null {
-  return server.location?.countryCode ?? resolveRegionCoordinates(server.region)?.code ?? null
+  return serverMapLocation(server)?.code ?? null
 }
 const filteredServers = computed(() => selectedCountry.value
   ? scopeServers.value.filter((server) => serverCountry(server) === selectedCountry.value)
@@ -233,7 +243,8 @@ const serverLoadReason = computed(() => {
     .join('；')
 })
 
-watch(groups, (nextGroups) => {
+watch([groups, () => serverStore.state], ([nextGroups, state]) => {
+  if (state !== 'ready' || serverStore.sourceFailures.length > 0) return
   if (selectedGroup.value !== ALL_GROUPS && !nextGroups.includes(selectedGroup.value)) {
     selectedGroup.value = ALL_GROUPS
   }
@@ -609,6 +620,7 @@ onUnmounted(() => realtime.stop())
                 :price-visible="priceVisible"
                 :style="cardStyle(index)"
                 @open="openServer(server)"
+                @probe="openProbe(server, $event)"
                 @toggle-favorite="preferences.toggleFavorite(server.key)"
               />
             </TransitionGroup>
@@ -633,6 +645,13 @@ onUnmounted(() => realtime.stop())
         </template>
       </main>
 
+      <NodeProbeDialog
+        v-if="probeServerKey && probeServer"
+        v-model:open="probeDialogOpen"
+        :server="probeServer"
+        :initial-metric="probeMetric"
+        @detail="probeDialogOpen = false; openServer(probeServer)"
+      />
       <footer v-if="!coldStartCover" class="app-footer">
         <span>
           Powered by

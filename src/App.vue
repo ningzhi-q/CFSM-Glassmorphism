@@ -6,6 +6,7 @@ import DynamicBackground from '@/components/dashboard/DynamicBackground.vue'
 import LoadingCover from '@/components/dashboard/LoadingCover.vue'
 import TurnstileChallenge from '@/components/dashboard/TurnstileChallenge.vue'
 import AppToaster from '@/components/ui/AppToaster.vue'
+import BackToTop from '@/components/dashboard/BackToTop.vue'
 import { bootstrapKey, coldStartSettled, startBootstrapRequests, type EntryPage } from '@/domain/bootstrap'
 import { captureInjectedSiteTitle, injectedSiteTitleKey, type InjectedSiteTitle } from '@/domain/site-title'
 import { pageLeft, pageMotionEnabled, pageTransitionActive } from '@/router/navigation-motion'
@@ -117,4 +118,5 @@ watch(() => app.state, (state) => {
     </Transition>
   </RouterView>
   <AppToaster />
+  <BackToTop />
 </template>

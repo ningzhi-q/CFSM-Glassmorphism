@@ -68,12 +68,10 @@ export function resolveRegionCoordinates(region: string | null): { code: string,
 export function buildEarthPoints(servers: readonly GlassServer[]): EarthPoint[] {
   const grouped = new Map<string, EarthPoint>()
   for (const server of servers) {
-    const location = server.location
-      ? { code: server.location.countryCode, latitude: server.location.latitude, longitude: server.location.longitude }
-      : resolveRegionCoordinates(server.region)
+    const location = serverMapLocation(server)
     if (!location) continue
-    const city = server.location?.city
-    const id = server.location
+    const city = location.city
+    const id = location.source !== 'country'
       ? `${location.code.toLowerCase()}-${city || `${location.latitude.toFixed(2)},${location.longitude.toFixed(2)}`}`
       : location.code.toLowerCase()
     const current = grouped.get(id)
@@ -97,6 +95,22 @@ export function buildEarthPoints(servers: readonly GlassServer[]): EarthPoint[] 
     })
   }
   return [...grouped.values()].sort((left, right) => left.code.localeCompare(right.code))
+}
+
+/** Legacy IP databases must not move a node outside its registered country. */
+export function serverMapLocation(server: GlassServer): {
+  code: string
+  latitude: number
+  longitude: number
+  city: string | null
+  source: 'country' | 'legacy-ip' | 'operator'
+} | null {
+  const region = resolveRegionCoordinates(server.region)
+  const geo = server.location
+  if (geo && !(geo.source === 'legacy-ip' && region && geo.countryCode !== region.code)) {
+    return { code: geo.countryCode, latitude: geo.latitude, longitude: geo.longitude, city: geo.city, source: geo.source }
+  }
+  return region ? { ...region, city: null, source: 'country' } : null
 }
 
 export type HealthTone = 'healthy' | 'warning' | 'critical' | 'unknown'

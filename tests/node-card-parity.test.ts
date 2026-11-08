@@ -42,7 +42,8 @@ describe('进度条状态照上游阈值，不再跟随「高负载阈值」', (
 
   it('节点卡与列表视图都用这组函数，卡片不再接收 highLoadThreshold', () => {
     expect(serverCard).toContain('usageStatus(server.cpu)')
-    expect(serverCard).toContain('trafficStatus(trafficPercent)')
+    expect(serverCard).toContain('usageStatus(loadPercent)')
+    expect(serverCard).toContain('trafficTextTone(trafficPercent.value)')
     expect(serverCard).not.toContain('highLoadThreshold')
     expect(homeView).not.toContain('high-load-threshold')
   })

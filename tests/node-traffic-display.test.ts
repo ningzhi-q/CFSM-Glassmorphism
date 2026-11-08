@@ -104,7 +104,7 @@ async function cardTraffic(overrides: Partial<GlassServer>, density: 'comfortabl
   const html = await renderToString(createSSRApp(ServerCard, {
     server: server(overrides), showSource: false, density, favorite: false, priceVisible: true,
   }))
-  const match = /node-metric__label--traffic[\s\S]*?<span class="node-metric__value[^"]*">([^<]*)<\/span>[\s\S]*?<div class="node-metric__hint[^"]*">([^<]*)<\/div>/.exec(html)
+  const match = /data-node-box="traffic"[^>]*>[\s\S]*?<span class="[^"]*node-box__text[^"]*">([^<]*)<\/span>[\s\S]*?<span class="[^"]*node-box__text[^"]*">([^<]*)<\/span>/.exec(html)
   expect(match).not.toBeNull()
   return { head: match?.[1]?.trim() ?? '', hint: match?.[2]?.trim() ?? '' }
 }

@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { normalizeServer, toGlassServer } from '@/services/cfsm'
 import { apiSource } from '@/services/cfsm/config'
 import { splitLocationTags } from '@/services/cfsm/location-tags'
-import { buildEarthPoints } from '@/domain/advanced-tools'
+import { buildEarthPoints, serverMapLocation } from '@/domain/advanced-tools'
 import { filterServers, summarizeServers } from '@/domain/dashboard'
 import { useDashboardViewStore } from '@/stores/dashboard-view'
 import { countryName } from '@/utils/country-name'
@@ -43,6 +43,22 @@ describe('explicit operator location metadata', () => {
     expect(points.find(point => point.city === '洛杉矶')).toMatchObject({ total: 2, online: 2, latitude: 34.05 })
     expect(points.find(point => point.city === '纽约')?.total).toBe(1)
     expect(points.find(point => !point.city)?.region).toBe('美国')
+  })
+
+  it('keeps registered Japan and Malaysia out of legacy US IP clusters', () => {
+    const japan = { ...server('japan', 'one'), region: 'JP' }
+    const malaysia = { ...server('malaysia', 'one'), region: 'MY' }
+    const usa = server('usa', 'one')
+    expect(serverMapLocation(japan)).toMatchObject({ code: 'JP', city: null, source: 'country' })
+    expect(serverMapLocation(malaysia)).toMatchObject({ code: 'MY', city: null, source: 'country' })
+    expect(buildEarthPoints([japan, malaysia, usa]).map(point => point.code).sort()).toEqual(['JP', 'MY', 'US'])
+    expect(buildEarthPoints([japan])[0]?.region).toBe('日本')
+  })
+
+  it('honours explicitly supplied operator locations and supports unknown registered regions', () => {
+    const explicit = { ...server('moved', 'one', tags.filter(tag => !tag.includes('source'))), region: 'JP' }
+    expect(serverMapLocation(explicit)).toMatchObject({ code: 'US', city: '洛杉矶', source: 'operator' })
+    expect(serverMapLocation({ ...server('unknown', 'one'), region: null })?.code).toBe('US')
   })
 
   it('uses the same selected group for map clusters and totals, and supports searching cities', () => {

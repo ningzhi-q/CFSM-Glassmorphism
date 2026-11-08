@@ -10,6 +10,7 @@ import EARTH_SPECULAR_MAP from '@/assets/earth/earth-water.png'
 import { useServerGeoClusters } from '@/composables/useServerGeoClusters'
 import { flagUrl, hideMissingFlag } from '@/utils/flags'
 import type { GlassServer } from '@/types/glassmorphism'
+import { serverMapLocation } from '@/domain/advanced-tools'
 
 /**
  * `stopped` 与 `isDark` 由统一的 Earth 调度器传入以保持三种渲染器接口一致。
@@ -88,8 +89,8 @@ watch(regionClusters, () => {
 })
 function clusterTooltip(cluster: RegionCluster): string {
   const names = cluster.members.map((server) => `${server.name}（${server.online ? '在线' : '离线'}）`).join('、')
-  const source = cluster.members.some((server) => server.location?.source === 'legacy-ip')
-    ? '旧站 IP 属地参考，不代表实时或物理位置' : cluster.members.some((server) => server.location)
+  const source = cluster.members.some((server) => serverMapLocation(server)?.source === 'legacy-ip')
+    ? '旧站 IP 属地参考，不代表实时或物理位置' : cluster.members.some((server) => serverMapLocation(server)?.source === 'operator')
       ? '运营者提供的位置' : '国家/地区中心参考位置'
   return `${cluster.label} · ${countryName(cluster.code)} · ${cluster.onlineServers}/${cluster.servers} 在线\n${names}\n${source}`
 }
@@ -236,8 +237,8 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
 
       <div class="legend-panel" :class="legendDensityClass">
         <div class="legend-title">
-          EARTH MAP
-          <span v-if="totalServers > 0">{{ onlineRate }}%</span>
+          节点地图
+          <span v-if="totalServers > 0">在线率 {{ onlineRate }}%</span>
         </div>
         <div class="legend-modes" role="group" aria-label="地图列表显示方式">
           <button type="button" :aria-pressed="legendMode === 'cities'" @click="legendMode = 'cities'">
@@ -270,7 +271,7 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
           <img :src="flagUrl(cluster.code)" :alt="countryName(cluster.code)" class="legend-flag" @error="hideMissingFlag">
           <span class="legend-copy">
             <span class="legend-name">{{ cluster.label }}</span>
-            <span class="legend-meta">{{ cluster.onlineServers }}/{{ cluster.servers }} 在线 · {{ countryName(cluster.code) }}</span>
+            <span class="legend-meta">{{ cluster.onlineServers }}/{{ cluster.servers }} 在线 · {{ legendMode === 'cities' && !cluster.city ? '国家参考位置' : countryName(cluster.code) }}</span>
           </span>
         </button>
       </div>
@@ -278,7 +279,7 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
     <AppDialog
       v-model:open="dialogOpen"
       :title="selectedCluster ? `${selectedCluster.label} · ${countryName(selectedCluster.code)}` : '节点位置'"
-      :description="selectedCluster ? `${selectedCluster.onlineServers}/${selectedCluster.servers} 在线，点击节点查看详情。${selectedCluster.members.some(server => server.location?.source === 'legacy-ip') ? '位置来自旧站 IP 属地参考。' : '位置来自运营者信息或国家中心。'}` : undefined"
+      :description="selectedCluster ? `${selectedCluster.onlineServers}/${selectedCluster.servers} 在线，点击节点查看详情。${selectedCluster.members.some(server => serverMapLocation(server)?.source === 'legacy-ip') ? '位置来自旧站 IP 属地参考。' : '位置来自运营者信息或国家中心。'}` : undefined"
     >
       <div class="location-members">
         <button v-for="server in selectedCluster?.members ?? []" :key="server.key" type="button" @click="openMember(server)">
@@ -671,61 +672,29 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
   color: rgb(186 230 253 / 66%);
 }
 
-@media (max-width: 640px) {
-  .earth-map-scroll {
-    touch-action: pan-x pan-y;
+/* 手机使用完整地图 + 下方可滚动列表，取消桌面侧栏的强制最小宽度。 */
+@media (max-width: 767px) {
+  .earth-map-scroll { height: auto; overflow: visible; }
+  .earth-map-shell { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: auto; border-radius: 1rem; }
+  .earth-map { width: 100%; height: auto; min-height: 0; aspect-ratio: 2 / 1; flex-shrink: 0; border-right: 0; border-bottom: 1px solid var(--glass-border); }
+  .map-status { top: 0.3rem; left: 0.3rem; gap: 0.3rem; padding: 0.15rem 0.4rem; font-size: 9px; }
+  .legend-panel, .legend-dense, .legend-very-dense, .legend-ultra-dense {
+    --legend-grid-columns: repeat(2, minmax(0, 1fr));
+    --legend-gap: 0.4rem;
+    --legend-item-columns: 1rem 1rem minmax(0, 1fr);
+    --legend-item-gap: 0.3rem;
+    --legend-item-radius: 0.5rem;
+    --legend-item-padding: 0.45rem 0.4rem;
+    --legend-index-size: 1rem;
+    --legend-index-font-size: 0.6rem;
+    --legend-flag-size: 1rem;
+    --legend-copy-line-height: 1.2;
+    --legend-name-font-size: 0.75rem;
+    --legend-meta-font-size: 0.6rem;
+    width: 100%; max-height: 20rem; padding: 0.6rem; overscroll-behavior-y: contain;
   }
-
-  .earth-map-shell {
-    min-width: 42rem;
-    grid-template-columns: minmax(28rem, 1fr) minmax(11rem, 30%);
-  }
-
-  .earth-map {
-    min-width: 0;
-    min-height: 18rem;
-  }
-
-  .map-svg {
-    padding-inline: 0;
-  }
-
-  .legend-panel {
-    --legend-grid-columns: 1fr;
-    --legend-gap: 0.16rem;
-    --legend-item-columns: 0.92rem 0.74rem minmax(0, 1fr);
-    --legend-item-gap: 0.18rem;
-    --legend-item-radius: 0.45rem;
-    --legend-item-padding: 0.14rem 0.24rem;
-    --legend-index-size: 0.82rem;
-    --legend-index-font-size: 0.5rem;
-    --legend-flag-size: 0.74rem;
-    --legend-copy-line-height: 1;
-    --legend-name-font-size: 0.52rem;
-    --legend-meta-font-size: 0.4rem;
-
-    padding: 0.55rem 0.5rem;
-  }
-
-  .legend-title {
-    padding: 0.18rem 0.45rem;
-    font-size: 0.54rem;
-    letter-spacing: 0.15em;
-  }
-
-  .legend-very-dense,
-  .legend-ultra-dense {
-    --legend-gap: 0.12rem;
-    --legend-item-columns: 0.78rem 0.62rem minmax(0, 1fr);
-    --legend-item-gap: 0.12rem;
-    --legend-item-radius: 0.36rem;
-    --legend-item-padding: 0.08rem 0.16rem;
-    --legend-index-size: 0.66rem;
-    --legend-index-font-size: 0.4rem;
-    --legend-flag-size: 0.62rem;
-    --legend-copy-line-height: 0.94;
-    --legend-name-font-size: 0.44rem;
-    --legend-meta-font-size: 0.32rem;
-  }
+  .legend-item { min-height: 44px; }
+  .legend-modes button { min-height: 36px; padding: 0.3rem 0.6rem; font-size: 12px; }
+  .legend-title { font-size: 12px; letter-spacing: 0.08em; }
 }
 </style>

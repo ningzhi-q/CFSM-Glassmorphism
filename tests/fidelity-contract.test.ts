@@ -133,8 +133,9 @@ describe('Komari fidelity contracts', () => {
     // 浏览器返回时恢复原滚动位置；页面内导航回到首页时恢复离开首页时的位置（Komari onActivated）。
     expect(router).toContain('scrollBehavior: pageScrollBehavior')
     expect(source('../src/router/navigation-motion.ts')).toContain("savedPosition ?? { top: to.name === 'home' ? homeScrollTop : 0 }")
-    // 这些是浏览状态，不得混入后端主题配置或本地覆盖，也不做任何持久化。
-    expect(viewStore).not.toMatch(/localStorage\s*\./)
+    // 用户要求分组跨刷新保留；其他浏览状态仍不写入后端主题配置。
+    expect(viewStore).toContain('DASHBOARD_GROUP_KEY')
+    expect(viewStore).toContain('window.localStorage.setItem(DASHBOARD_GROUP_KEY, group)')
     expect(viewStore).not.toMatch(/sessionStorage\s*\./)
     expect(viewStore).not.toMatch(/\bfetch\s*\(/)
   })
@@ -290,14 +291,15 @@ describe('Komari fidelity contracts', () => {
     // 头部右侧与 Komari 一致：收藏、OS 图标、地区旗帜。
     expect(card).toContain('osIconUrl(server.operatingSystem)')
     expect(card).toContain('flagUrl(regionCode)')
-    // 四项进度：CPU / 内存 / 硬盘 / 流量。
+    // 用户增强布局：CPU / 内存 / 硬盘 / 负载，流量移到第三信息盒。
     expect(card).toContain('node-metric__label--cpu')
     expect(card).toContain('node-metric__label--memory')
     expect(card).toContain('node-metric__label--disk')
-    expect(card).toContain('node-metric__label--traffic')
+    expect(card).toContain('node-metric__label--load')
+    expect(card).toContain('data-node-box="traffic"')
     // 三列信息框保持上游图标和独立截断层；到期日期不直接塞进窄框。
-    expect(card).toContain('tabler:calendar-stats')
-    expect(card).toContain('tabler:coins')
+    expect(card).toContain('expiryFullText.value')
+    expect(card).toContain('remainingValueText.value')
     expect(card).toContain('node-box__text')
     expect(card).not.toContain('到期 {{ server.expireDate }}')
   })
