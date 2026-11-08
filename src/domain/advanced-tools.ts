@@ -86,7 +86,7 @@ export function buildEarthPoints(servers: readonly GlassServer[]): EarthPoint[] 
       id,
       city,
       asn: server.providerTags.asn,
-      region: formatCityNameZh(city) || city || countryName(location.code),
+      region: formatCityNameZh(city, location.code, location) || (city ? '城市译名待补充' : countryName(location.code)),
       x: (location.longitude + 180) / 360 * 100,
       y: (90 - location.latitude) / 180 * 100,
       total: 1,

@@ -187,3 +187,7 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 `ningzhi-q/CF-Server-Monitor` 的 `/api/servers`、`/api/server` 和 `/api/ws` 最新样本可附带 `location`：`{latitude:number, longitude:number, country:string, city:string|null, source:"cloudflare-ip", observed_at:number}`。坐标与时间必须为有效数字，时间为毫秒；这是探针上报出口 IP 的属地参考，不公开实际地址。标准后端没有此扩展时仍正常降级。
 
 `adapters.ts` 从 unknown 严格验证，转换为 `reportedLocation`；缺少字段的 WS partial sample 保留原位置。`toGlassServer` 按「明确运营者坐标 > 自动属地 > 旧站属地标签 > 国家中心」选择位置。主题没有新增网络请求或写接口，每个节点仍由其所属 API Base 提供 REST/WS 数据。
+
+## 2026-11-08：城市名称统一为简体中文
+
+参见 [城市名称的简体中文显示](city-localization.md)。使用本地 GeoNames 名称库和 OpenCC，展示与中文搜索采用统一译名；REST/WS 原始城市和坐标不变，不增加 API 请求或设置键。不存在可靠译名时显示中文提示，不生成猜测的地名。旧迁移定位标签经用户授权清理，自动属地无需标签继续工作。

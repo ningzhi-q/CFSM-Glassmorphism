@@ -1,5 +1,15 @@
+import { Converter } from 'opencc-js/t2cn'
+import { cityNames } from '@/stores/city-names'
+import type { CityGazetteerRecord } from '@/types/city-names'
+
 // Ported from Komari Glassmorphism cityNameHelper.ts (MIT).
 const CITY_NAME_ZH_MAP: Record<string, string> = {
+  'iola': '艾奥拉',
+  'chengdu': '成都',
+  'jeddah': '吉达',
+  'kampong loyang': '罗央',
+  'sultanbeyli': '苏丹贝伊利',
+  'tung chung': '东涌',
   'kwai chung': '葵涌',
   'cheung sha wan': '长沙湾',
   'kwun tong': '观塘',
@@ -20,10 +30,10 @@ const CITY_NAME_ZH_MAP: Record<string, string> = {
   'canary wharf': '金丝雀码头',
   'singapore (tampines)': '新加坡（淡滨尼）',
   'boulder (downtown)': '博尔德（市中心）',
-  "jeddah (al fayha'a)": '吉达（Al Fayha’a）',
+  "jeddah (al fayha'a)": '吉达（费哈区）',
   'singapore tampines': '新加坡（淡滨尼）',
   'boulder downtown': '博尔德（市中心）',
-  'jeddah al fayhaa': '吉达（Al Fayha’a）',
+  'jeddah al fayhaa': '吉达（费哈区）',
   'barcelona': '巴塞罗那',
   'houston': '休斯敦',
   'amsterdam': '阿姆斯特丹',
@@ -91,21 +101,56 @@ const CJK_UNIFIED_IDEOGRAPH_REGEX = /\p{Script=Han}/u
 
 function normalizeCityName(city: string): string {
   return city
-    .normalize('NFKC')
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
     .toLowerCase()
     .replace(CITY_SEPARATOR_REGEX, ' ')
     .replace(CITY_SPACES_REGEX, ' ')
     .trim()
 }
 
-export function formatCityNameZh(city: string | null | undefined): string {
-  if (!city?.trim())
-    return ''
+const simplify = Converter({ from: 't', to: 'cn' })
+const upstreamNames = new Map(Object.entries(CITY_NAME_ZH_MAP).map(([alias, name]) => [normalizeCityName(alias), name]))
+type GazetteerRecord = CityGazetteerRecord
+let previousIndex = cityNames.value
+const formattedNames = new Map<string, string>()
+interface CityCoordinates { latitude: number; longitude: number }
 
+/** Exact city aliases only. Coordinates disambiguate homonyms; they never infer a city. */
+export function formatCityNameZh(city: string | null | undefined, countryCode?: string, coordinates?: CityCoordinates): string {
+  if (!city?.trim()) return ''
   const trimmed = city.trim()
-  const mappedName = CITY_NAME_ZH_MAP[normalizeCityName(trimmed)]
-  if (mappedName)
-    return mappedName
+  const alias = normalizeCityName(trimmed)
+  const country = countryCode?.toUpperCase() ?? ''
+  const key = `${country}:${alias}:${coordinates?.latitude ?? ''}:${coordinates?.longitude ?? ''}`
+  if (previousIndex !== cityNames.value) {
+    formattedNames.clear()
+    previousIndex = cityNames.value
+  }
+  const cached = formattedNames.get(key)
+  if (cached !== undefined) return cached
 
-  return CJK_UNIFIED_IDEOGRAPH_REGEX.test(trimmed) ? trimmed : ''
+  let name = upstreamNames.get(alias) ?? ''
+  if (!name && CJK_UNIFIED_IDEOGRAPH_REGEX.test(trimmed) && !/[a-z]/i.test(trimmed)) name = simplify(trimmed)
+  if (!name && country) {
+    const matches = cityNames.value.get(`${country}:${alias}`) ?? []
+    const names = new Set(matches.map(record => record[2]))
+    if (names.size === 1) name = matches[0]?.[2] ?? ''
+    else if (coordinates && Number.isFinite(coordinates.latitude) && Number.isFinite(coordinates.longitude)) {
+      let nearest: GazetteerRecord | undefined
+      let distance = Infinity
+      for (const record of matches) {
+        const delta = (coordinates.latitude - record[3]) ** 2
+          + ((coordinates.longitude - record[4]) * Math.cos(coordinates.latitude * Math.PI / 180)) ** 2
+        if (delta < distance) { distance = delta; nearest = record }
+      }
+      if (nearest && distance <= 1) name = nearest[2]
+    }
+  }
+  formattedNames.set(key, name)
+  if (formattedNames.size > 512) {
+    const oldest = formattedNames.keys().next().value
+    if (oldest !== undefined) formattedNames.delete(oldest)
+  }
+  return name
 }

@@ -1,3 +1,4 @@
+import { formatCityNameZh } from '@/utils/city-name'
 import type {
   DashboardSort,
   DashboardSummary,
@@ -45,6 +46,7 @@ export function filterServers(
       server.group,
       server.region,
       server.location?.city,
+      formatCityNameZh(server.location?.city, server.location?.countryCode, server.location ?? undefined),
       server.location?.countryCode,
       server.cpuInfo,
       server.operatingSystem,

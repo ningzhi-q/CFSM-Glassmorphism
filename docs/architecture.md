@@ -395,3 +395,7 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 后端在探针成功鉴权并提交有效指标后，以可信 Cloudflare 请求元数据自动保存城市、国家和经纬度，公共 REST/WS 返回同一 `location` DTO。主题 transport 不作 IP 查询；adapter 校验后存为 `CfsmServer.reportedLocation`，Glass adapter 处理位置优先级，`serverMapLocation` 为地图和筛选提供统一位置。旧后端缺字段时保留国家中心回退。没有城市时地图标题只显示一次国家名。
 
 地图已有坐标签名与旗帜布局复用保持不变，普通指标更新不重新计算几何。自动位置变化会进入正常坐标布局流程。
+
+## 2026-11-08：城市名称统一为简体中文
+
+参见 [城市名称的简体中文显示](city-localization.md)。使用本地 GeoNames 名称库和 OpenCC，展示与中文搜索采用统一译名；REST/WS 原始城市和坐标不变，不增加 API 请求或设置键。不存在可靠译名时显示中文提示，不生成猜测的地名。旧迁移定位标签经用户授权清理，自动属地无需标签继续工作。

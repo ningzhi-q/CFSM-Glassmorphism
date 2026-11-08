@@ -50,11 +50,13 @@ describe('release performance contracts', () => {
     // 可见性侦测。第 9.95 轮继续按上游实现补齐 echarts + vue-echarts（History 图表族）
     // 与 reka-ui + vue-sonner（UI 基元与提示）。这里锁定完整集合，防止之后无意引入
     // 其它运行时依赖，也防止有人为了缩小包体退回自写仿制版本。
+    // OpenCC 是本轮用户要求简体中文地名所需的字形转换，不替换上游 renderer。
     expect(Object.keys(packageJson.dependencies ?? {}).sort()).toEqual([
       '@vueuse/core',
       'cobe',
       'echarts',
       'globe.gl',
+      'opencc-js',
       'pinia',
       'reka-ui',
       'three',
