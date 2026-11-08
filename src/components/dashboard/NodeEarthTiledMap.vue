@@ -147,6 +147,18 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
     statusClass: cluster.onlineServers > 0 ? 'is-online' : 'is-offline',
   }
 }))
+
+// SVG uses paint order, not z-index. Keep hit targets in place while painting
+// hovered/focused flags last, including every city of a highlighted country.
+const visualClusterMarkers = computed(() => {
+  const activeId = hoveredClusterId.value
+  if (!activeId) return clusterMarkers.value
+  const active = (marker: ClusterMarker) => marker.id === activeId || marker.code === activeId
+  return [
+    ...clusterMarkers.value.filter((marker) => !active(marker)),
+    ...clusterMarkers.value.filter(active),
+  ]
+})
 </script>
 
 <template>
@@ -183,23 +195,27 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
           <rect :width="MAP_WIDTH" :height="MAP_HEIGHT" class="earth-overlay" />
 
           <g class="city-points">
-            <g v-for="marker in clusterMarkers" :key="`${marker.id}-visual`" :class="{ 'marker-visual-muted': props.selectedCountry && marker.code !== props.selectedCountry, 'marker-visual-active': hoveredClusterId === marker.id || hoveredClusterId === marker.code }">
-
-
+            <g v-for="marker in visualClusterMarkers" :key="`${marker.id}-visual`" :class="{ 'marker-visual-muted': props.selectedCountry && marker.code !== props.selectedCountry, 'marker-visual-active': hoveredClusterId === marker.id || hoveredClusterId === marker.code }">
               <circle :cx="marker.x" :cy="marker.y" r="11" class="city-region" :class="marker.statusClass" />
               <circle :cx="marker.x" :cy="marker.y" r="3.8" class="city-dot" :class="marker.statusClass" />
-              <image
-                v-if="marker.code" :href="flagUrl(marker.code)"
-                :x="marker.x - 13" :y="marker.y - 34" width="26" height="26"
-                preserveAspectRatio="xMidYMid slice" class="map-flag"
-              />
+              <g v-if="marker.code" class="map-flag-frame">
+                <image
+                  :href="flagUrl(marker.code)"
+                  :x="marker.x - 13" :y="marker.y - 34" width="26" height="26"
+                  preserveAspectRatio="xMidYMid slice" class="map-flag"
+                />
+              </g>
             </g>
             <foreignObject
               v-for="marker in clusterMarkers" :key="marker.id"
               :x="marker.x - 14" :y="marker.y - 36" width="28" height="52"
               class="marker-trigger-box"
             >
-              <div xmlns="http://www.w3.org/1999/xhtml" class="marker-trigger-wrapper">
+              <div
+                xmlns="http://www.w3.org/1999/xhtml" class="marker-trigger-wrapper"
+                @focusin="hoveredClusterId = marker.id"
+                @focusout="hoveredClusterId = null"
+              >
                 <AppTooltip
                   as="button"
                   :content="clusterTooltip(marker.cluster)"
@@ -210,8 +226,6 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
                   :aria-label="`${marker.label}，查看 ${marker.cluster.servers} 台节点`"
                   @mouseenter="hoveredClusterId = marker.id"
                   @mouseleave="hoveredClusterId = null"
-                  @focus="hoveredClusterId = marker.id"
-                  @blur="hoveredClusterId = null"
                   @click="openCluster(marker.cluster)"
                   @keydown.enter.prevent="openCluster(marker.cluster)"
                   @keydown.space.prevent="openCluster(marker.cluster)"
@@ -301,6 +315,10 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
 .marker-trigger-wrapper { width: 100%; height: 100%; }
 .marker-hit-area { fill: transparent; }
 .marker-visual-active .city-region { stroke: var(--emerald); stroke-width: 3; }
+/* Apply the shadow outside the clipped image so rounded flag edges do not cut it off. */
+.marker-visual-active .map-flag-frame {
+  filter: drop-shadow(0 3px 4px rgb(15 23 42 / 85%)) drop-shadow(0 0 1px rgb(255 255 255 / 95%));
+}
 .is-muted, .marker-visual-muted { opacity: 0.3; }
 .marker-trigger-wrapper :deep(.map-cluster-trigger:focus-visible) { outline: 2px solid var(--emerald); border-radius: 4px; }
 .legend-modes { display: flex; grid-column: 1 / -1; flex-wrap: wrap; gap: 0.25rem; }
