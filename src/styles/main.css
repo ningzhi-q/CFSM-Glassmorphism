@@ -204,6 +204,7 @@
  * 本轮按「上游令牌逐字照抄」的规则删除，实测两串宽度均无变化。
  */
 html {
+  scrollbar-gutter: stable;
   /* 长节点页滚到边界时避免弹性回弹带动固定背景与卡片画面。 */
   overscroll-behavior-y: none;
   min-width: 320px;
@@ -4935,6 +4936,7 @@ a {
 .general-stage.general-stage--tiled .general-stage__earth {
   grid-row: 2;
   min-height: 18rem;
+  height: 18rem;
 }
 
 @media (min-width: 640px) {
@@ -4951,6 +4953,7 @@ a {
 
   .general-stage.general-stage--tiled .general-stage__earth {
     min-height: 20rem;
+    height: 20rem;
   }
 
   .general-stage--tiled .overview-card {
@@ -5001,6 +5004,7 @@ a {
 
   .general-stage.general-stage--tiled .general-stage__earth {
     min-height: 24rem;
+    height: 24rem;
   }
 
   .general-stage--tiled .general-stage__cards {
@@ -5015,6 +5019,7 @@ a {
 
   .general-stage.general-stage--tiled .general-stage__earth {
     min-height: 28rem;
+    height: 28rem;
   }
 }
 

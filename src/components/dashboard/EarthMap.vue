@@ -15,6 +15,7 @@ import type { GlassServer } from '@/types/glassmorphism'
  */
 const props = defineProps<{
   servers: readonly GlassServer[]
+  retainedServers?: readonly GlassServer[]
   renderer: EarthRenderer
   stopped: boolean
   isDark: boolean
@@ -49,6 +50,7 @@ const earthComponent = computed(() => {
   <component
     :is="earthComponent"
     :servers="props.servers"
+    v-bind="props.renderer === 'tiled' ? { retainedServers: props.retainedServers } : {}"
     :stopped="props.stopped"
     :is-dark="props.isDark"
     :selected-country="props.selectedCountry"

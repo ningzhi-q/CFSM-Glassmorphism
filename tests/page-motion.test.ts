@@ -146,8 +146,8 @@ describe('接线与样式', () => {
   })
 
   it('卡片进场保留 TransitionGroup 与原位移，取消模糊合成', () => {
-    expect(home).toMatch(/<TransitionGroup\n\s+v-else-if="viewMode === 'card'"\n\s+:key="selectedGroup"\n\s+:appear="cardTransition"\n\s+:css="cardTransition"\n\s+name="node-card-switch"/)
-    expect(home).toContain('const cardTransition = computed(() => !theme.runtime.disablePageAnimation && visibleServers.value.length <= 30)')
+    expect(home).toMatch(/<TransitionGroup\n\s+v-if="viewMode === 'card'"\n\s+v-show="!hasNoMatches"\n\s+:key="selectedGroup"\n\s+:appear="cardTransition"\n\s+:css="cardTransition"\n\s+name="node-card-switch"/)
+    expect(home).toContain('const cardTransition = computed(() => !theme.runtime.disablePageAnimation && !retainCards.value && visibleServers.value.length <= 30)')
     expect(home).toContain("'--node-item-delay': `${index * 35}ms`")
     expect(css).not.toContain('node-enter')
     expect(css).toMatch(/\.node-card\.node-card-switch-enter-active \{\n\s+transition-delay: var\(--node-item-delay, 0ms\);/)
@@ -157,9 +157,10 @@ describe('接线与样式', () => {
   it('分组重新挂载，快捷筛选复用已有节点身份', () => {
     // 分组：上游每个分组一个 TabsContent，切换时网格整个卸载重挂，旧卡片当帧消失、新卡片按 appear 依次进场。
     // 只换卡片 key 的话，Vue 要等下一帧才移走离场卡片，切换瞬间会多出一帧新旧卡片共存。
-    expect(home).toMatch(/<TransitionGroup\n\s+v-else-if="viewMode === 'card'"\n\s+:key="selectedGroup"/)
+    expect(home).toMatch(/<TransitionGroup\n\s+v-if="viewMode === 'card'"\n\s+v-show="!hasNoMatches"\n\s+:key="selectedGroup"/)
     // 用户复现同一节点的新旧卡片同时出现后，快捷筛选必须保持身份稳定。
-    expect(home).toContain(':key="server.key"\n                :server="server"')
+    expect(home).toContain(':key="server.key"')
+    expect(home).toContain('v-show="visibleServerKeys.has(server.key)"')
     expect(home).not.toContain('cardTransitionKey(server)')
   })
 
@@ -174,7 +175,7 @@ describe('接线与样式', () => {
 
   it('列表行切换照搬上游 NodeList 的 node-row-switch', () => {
     // 分组：列表随分组 key 整个重新挂载（上游在各分组的 TabsContent 里），行按 appear 依次进场。
-    expect(home).toMatch(/<ServerList\n\s+v-else\n\s+:key="selectedGroup"/)
+    expect(home).toMatch(/<ServerList\n\s+v-else-if="!hasNoMatches"\n\s+:key="selectedGroup"/)
     expect(home).toContain(':transition-key="selectedGroup"')
     expect(home).toContain(':motion="!theme.runtime.disablePageAnimation"')
     // 行 key 只含分组（Komari getRowTransitionKey）：快捷筛选、实时数据与排序不换 key。

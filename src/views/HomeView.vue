@@ -177,6 +177,15 @@ const visibleServers = computed(() => sortServers(
   sort.value,
   theme.runtime.offlineNodesLast,
 ))
+// Large groups retain their mounted cards during quick filters. This avoids
+// rebuilding every tooltip and metric when returning from favourites to all.
+const groupServers = computed(() => filterServers(glassServers.value, '', selectedGroup.value))
+const mapRetainedServers = computed(() => filterServers(glassServers.value, query.value, selectedGroup.value))
+const retainCards = computed(() => groupServers.value.length > 30)
+const renderedCardServers = computed(() => retainCards.value
+  ? sortServers(groupServers.value, sort.value, theme.runtime.offlineNodesLast)
+  : visibleServers.value)
+const visibleServerKeys = computed(() => new Set(visibleServers.value.map(server => server.key)))
 /*
  * 与上游 `quickControlCounts` / `getQuickControlCount` 一致：在当前分组与搜索范围内计数，
  * 不受正在使用的快捷筛选影响；排序类控制（总流量、上行、下行、峰值）显示范围内的节点数。
@@ -197,7 +206,7 @@ const quickCounts = computed<Record<QuickControlKey, number>>(() => {
   }
 })
 // Komari enableNodeCardTransition：关闭页面动画或卡片超过 30 张（denseNodeAppearThreshold）时不播进场过渡。
-const cardTransition = computed(() => !theme.runtime.disablePageAnimation && visibleServers.value.length <= 30)
+const cardTransition = computed(() => !theme.runtime.disablePageAnimation && !retainCards.value && visibleServers.value.length <= 30)
 const showSource = computed(() => (
   app.apiBases.length > 1 || serverStore.collections.length > 1
 ))
@@ -323,7 +332,8 @@ function quickAction(key: QuickControlKey): void {
     download: 'download',
     peak: 'peak',
   }
-  if (sorts[key]) sort.value = sorts[key] as DashboardSort
+  const nextSort = sorts[key]
+  if (nextSort) sort.value = nextSort
 }
 
 onMounted(async () => {
@@ -496,6 +506,7 @@ onUnmounted(() => realtime.stop())
               v-if="showEarth"
               class="general-stage__earth"
               :servers="scopeServers"
+              :retained-servers="mapRetainedServers.length > 30 ? mapRetainedServers : undefined"
               :selected-country="selectedCountry"
               :renderer="theme.runtime.earthRenderer"
               :stopped="theme.runtime.stopEarth"
@@ -588,7 +599,8 @@ onUnmounted(() => realtime.stop())
               新分组的网格重新挂载并按 appear 依次进场，旧卡片当帧消失，不走离场过渡。
             -->
             <TransitionGroup
-              v-else-if="viewMode === 'card'"
+              v-if="viewMode === 'card'"
+              v-show="!hasNoMatches"
               :key="selectedGroup"
               :appear="cardTransition"
               :css="cardTransition"
@@ -600,14 +612,16 @@ onUnmounted(() => realtime.stop())
               ]"
             >
               <ServerCard
-                v-for="(server, index) in visibleServers"
+                v-for="(server, index) in renderedCardServers"
+                v-show="visibleServerKeys.has(server.key)"
                 :key="server.key"
+                v-memo="[visibleServerKeys.has(server.key) ? server : server.key, showSource, theme.runtime.nodeCardSize, preferences.isFavorite(server.key), priceVisible, visibleServerKeys.has(server.key), cardTransition ? index : -1]"
                 :server="server"
                 :show-source="showSource"
                 :density="theme.runtime.nodeCardSize"
                 :favorite="preferences.isFavorite(server.key)"
                 :price-visible="priceVisible"
-                :style="cardStyle(index)"
+                :style="cardTransition ? cardStyle(index) : undefined"
                 @open="openServer(server)"
                 @probe="openProbe(server, $event)"
                 @toggle-favorite="preferences.toggleFavorite(server.key)"
@@ -615,7 +629,7 @@ onUnmounted(() => realtime.stop())
             </TransitionGroup>
             <!-- 与卡片网格同理：上游列表也在各分组的 TabsContent 里，切换分组时整个重新挂载。 -->
             <ServerList
-              v-else
+              v-else-if="!hasNoMatches"
               :key="selectedGroup"
               :servers="visibleServers"
               :show-source="showSource"

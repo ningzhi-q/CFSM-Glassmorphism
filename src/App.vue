@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usePreferredReducedMotion } from '@vueuse/core'
+import { ConfigProvider } from 'reka-ui'
 import { computed, provide, readonly, ref, watch, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import DynamicBackground from '@/components/dashboard/DynamicBackground.vue'
@@ -85,38 +86,40 @@ watch(() => app.state, (state) => {
 </script>
 
 <template>
-  <DynamicBackground />
-  <Transition
-    :css="!theme.runtime.disablePageAnimation"
-    enter-active-class="loading-cover-enter-active"
-    enter-from-class="loading-cover-enter-from"
-    enter-to-class="loading-cover-enter-to"
-    leave-active-class="loading-cover-leave-active"
-    leave-from-class="loading-cover-leave-from"
-    leave-to-class="loading-cover-leave-to"
-  >
-    <!-- 浏览中途凭据过期（403）时同样用遮罩承载人机验证。 -->
-    <LoadingCover v-if="coverVisible || app.turnstileSiteKey !== null" :challenge="app.turnstileSiteKey !== null" :modal="!coverVisible">
-      <TurnstileChallenge v-if="app.turnstileSiteKey !== null" :key="app.turnstileSiteKey" :site-key="app.turnstileSiteKey" />
-    </LoadingCover>
-  </Transition>
-  <!--
+  <ConfigProvider :scroll-body="{ padding: 0, margin: 0 }">
+    <DynamicBackground />
+    <Transition
+      :css="!theme.runtime.disablePageAnimation"
+      enter-active-class="loading-cover-enter-active"
+      enter-from-class="loading-cover-enter-from"
+      enter-to-class="loading-cover-enter-to"
+      leave-active-class="loading-cover-leave-active"
+      leave-from-class="loading-cover-leave-from"
+      leave-to-class="loading-cover-leave-to"
+    >
+      <!-- 浏览中途凭据过期（403）时同样用遮罩承载人机验证。 -->
+      <LoadingCover v-if="coverVisible || app.turnstileSiteKey !== null" :challenge="app.turnstileSiteKey !== null" :modal="!coverVisible">
+        <TurnstileChallenge v-if="app.turnstileSiteKey !== null" :key="app.turnstileSiteKey" :site-key="app.turnstileSiteKey" />
+      </LoadingCover>
+    </Transition>
+    <!--
     与 Komari App.vue 一致：首页由 KeepAlive 保留，返回时不重建、不重播卡片进场与数据加载；
     页面内导航播放 out-in 换页过渡。浏览器历史导航不播，原因见 router/navigation-motion.ts。
   -->
-  <RouterView v-slot="{ Component }">
-    <Transition
-      name="page"
-      :css="pageTransitionActive"
-      :mode="pageTransitionActive ? 'out-in' : 'default'"
-      :duration="{ enter: 300, leave: 150 }"
-      @after-leave="pageLeft"
-    >
-      <KeepAlive :include="['HomeView']">
-        <component :is="Component" />
-      </KeepAlive>
-    </Transition>
-  </RouterView>
-  <AppToaster />
-  <BackToTop />
+    <RouterView v-slot="{ Component }">
+      <Transition
+        name="page"
+        :css="pageTransitionActive"
+        :mode="pageTransitionActive ? 'out-in' : 'default'"
+        :duration="{ enter: 300, leave: 150 }"
+        @after-leave="pageLeft"
+      >
+        <KeepAlive :include="['HomeView']">
+          <component :is="Component" />
+        </KeepAlive>
+      </Transition>
+    </RouterView>
+    <AppToaster />
+    <BackToTop />
+  </ConfigProvider>
 </template>

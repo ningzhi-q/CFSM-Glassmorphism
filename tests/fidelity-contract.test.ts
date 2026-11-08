@@ -159,7 +159,7 @@ describe('Komari fidelity contracts', () => {
     const viewStore = source('../src/stores/dashboard-view.ts')
 
     // 节点直接进入一层卡片/列表，不恢复 CFSM 中间实现的分组容器。
-    expect(home).toContain('v-for="(server, index) in visibleServers"')
+    expect(home).toContain('v-for="(server, index) in renderedCardServers"')
     expect(home).toContain(':servers="visibleServers"')
     expect(home).not.toContain('groupedServers')
     expect(home).not.toContain('server-group')

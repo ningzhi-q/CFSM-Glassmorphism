@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useElementSize } from '@vueuse/core'
 import AppTooltip from '@/components/ui/AppTooltip.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
 import { countryName } from '@/utils/country-name'
@@ -11,6 +12,7 @@ import { useServerGeoClusters } from '@/composables/useServerGeoClusters'
 import { flagUrl, hideMissingFlag } from '@/utils/flags'
 import type { GlassServer } from '@/types/glassmorphism'
 import { serverMapLocation } from '@/domain/advanced-tools'
+import { layoutMapFlags, type MapMarkerAnchor } from '@/utils/map-marker-layout'
 
 /**
  * `stopped` 与 `isDark` 由统一的 Earth 调度器传入以保持三种渲染器接口一致。
@@ -19,6 +21,7 @@ import { serverMapLocation } from '@/domain/advanced-tools'
  */
 const props = defineProps<{
   servers: readonly GlassServer[]
+  retainedServers?: readonly GlassServer[]
   stopped?: boolean
   isDark?: boolean
   selectedCountry?: string | null
@@ -32,6 +35,8 @@ const legendMode = ref<'cities' | 'countries'>('countries')
 const hoveredClusterId = ref<string | null>(null)
 const selectedClusterId = ref<string | null>(null)
 const dialogOpen = ref(false)
+const mapElement = ref<HTMLElement | null>(null)
+const { width: mapWidth, height: mapHeight } = useElementSize(mapElement)
 
 const MAP_WIDTH = 1440
 const MAP_HEIGHT = 720
@@ -55,12 +60,18 @@ interface ClusterMarker {
   meta: string
   x: number
   y: number
+  flagX: number
+  flagY: number
+  visible: boolean
+  tooltip: string
   statusClass: string
 }
 
 const {
   regionClusters,
 } = useServerGeoClusters(() => props.servers)
+const { regionClusters: mountedClusters } = useServerGeoClusters(() => props.retainedServers ?? props.servers)
+const activeClusters = computed(() => new Map(regionClusters.value.map(cluster => [cluster.id, cluster])))
 
 const selectedServers = computed(() => props.selectedCountry
   ? regionClusters.value.filter((cluster) => cluster.code === props.selectedCountry).flatMap((cluster) => cluster.members)
@@ -132,21 +143,41 @@ function projectCoord(coord: [number, number]): MapPoint {
   }
 }
 
-const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map((cluster, index) => {
-  const point = projectCoord(cluster.coord)
-  return {
-    cluster,
-    id: cluster.id,
-    index: index + 1,
-    code: cluster.code,
-    label: cluster.label,
-    // ASN 仅来自运营者明确填写的标签。
-    meta: `${cluster.asn ? `${cluster.asn} · ` : ''}${countryName(cluster.code)}`,
-    x: point.x,
-    y: point.y,
-    statusClass: cluster.onlineServers > 0 ? 'is-online' : 'is-offline',
-  }
-}))
+const flagSize = computed(() => {
+  const scale = Math.min(mapWidth.value / MAP_WIDTH, mapHeight.value / MAP_HEIGHT)
+  return scale > 0 ? Math.max(26, 16 / scale) : 26
+})
+const markerAnchors = computed<MapMarkerAnchor[]>((previous) => {
+  const next = mountedClusters.value.map(cluster => ({ id: cluster.id, ...projectCoord(cluster.coord) }))
+  return previous && previous.length === next.length && next.every((anchor, index) => {
+    const old = previous[index]
+    return old?.id === anchor.id && old.x === anchor.x && old.y === anchor.y
+  }) ? previous : next
+})
+const flagPositions = computed(() => layoutMapFlags(markerAnchors.value, MAP_WIDTH, MAP_HEIGHT, flagSize.value, flagSize.value * 0.25))
+const clusterMarkers = computed<ClusterMarker[]>(() => {
+  return mountedClusters.value.map((mountedCluster, index) => {
+    const cluster = activeClusters.value.get(mountedCluster.id) ?? mountedCluster
+    const point = projectCoord(cluster.coord)
+    const flag = flagPositions.value.get(cluster.id) ?? point
+    return {
+      cluster,
+      id: cluster.id,
+      index: index + 1,
+      code: cluster.code,
+      label: cluster.label,
+      // ASN 仅来自运营者明确填写的标签。
+      meta: `${cluster.asn ? `${cluster.asn} · ` : ''}${countryName(cluster.code)}`,
+      x: point.x,
+      y: point.y,
+      flagX: flag.x,
+      flagY: flag.y,
+      visible: activeClusters.value.has(cluster.id),
+      tooltip: activeClusters.value.has(cluster.id) ? clusterTooltip(cluster) : '',
+      statusClass: cluster.onlineServers > 0 ? 'is-online' : 'is-offline',
+    }
+  })
+})
 
 // SVG uses paint order, not z-index. Keep hit targets in place while painting
 // hovered/focused flags last, including every city of a highlighted country.
@@ -164,13 +195,12 @@ const visualClusterMarkers = computed(() => {
 <template>
   <div class="earth-map-scroll">
     <div class="earth-map-shell">
-      <div class="earth-map">
+      <div ref="mapElement" class="earth-map">
         <svg
-          class="map-svg"
+          class="map-svg map-svg--texture"
           :viewBox="`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`"
           preserveAspectRatio="xMidYMid meet"
-          role="group"
-          aria-label="真实地球贴图节点世界地图"
+          aria-hidden="true"
         >
           <defs>
             <filter id="earth-relief" x="-4%" y="-4%" width="108%" height="108%">
@@ -193,22 +223,34 @@ const visualClusterMarkers = computed(() => {
             :height="TEXTURE_FULL_HEIGHT" preserveAspectRatio="none" class="earth-image earth-image-water"
           />
           <rect :width="MAP_WIDTH" :height="MAP_HEIGHT" class="earth-overlay" />
-
+        </svg>
+        <svg
+          class="map-svg map-svg--markers"
+          :viewBox="`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`"
+          preserveAspectRatio="xMidYMid meet"
+          role="group" aria-label="真实地球贴图节点世界地图"
+        >
           <g class="city-points">
-            <g v-for="marker in visualClusterMarkers" :key="`${marker.id}-visual`" :class="{ 'marker-visual-muted': props.selectedCountry && marker.code !== props.selectedCountry, 'marker-visual-active': hoveredClusterId === marker.id || hoveredClusterId === marker.code }">
+            <g
+              v-for="marker in visualClusterMarkers" v-show="marker.visible" :key="`${marker.id}-visual`"
+              v-memo="[marker.visible, marker.x, marker.y, marker.flagX, marker.flagY, flagSize, marker.statusClass, props.selectedCountry, hoveredClusterId === marker.id || hoveredClusterId === marker.code]"
+              :class="{ 'marker-visual-muted': props.selectedCountry && marker.code !== props.selectedCountry, 'marker-visual-active': hoveredClusterId === marker.id || hoveredClusterId === marker.code }"
+            >
+              <line :x1="marker.x" :y1="marker.y" :x2="marker.flagX" :y2="marker.flagY" class="marker-leader" />
               <circle :cx="marker.x" :cy="marker.y" r="11" class="city-region" :class="marker.statusClass" />
               <circle :cx="marker.x" :cy="marker.y" r="3.8" class="city-dot" :class="marker.statusClass" />
               <g v-if="marker.code" class="map-flag-frame">
                 <image
                   :href="flagUrl(marker.code)"
-                  :x="marker.x - 13" :y="marker.y - 34" width="26" height="26"
+                  :x="marker.flagX - flagSize / 2" :y="marker.flagY - flagSize / 2" :width="flagSize" :height="flagSize"
                   preserveAspectRatio="xMidYMid slice" class="map-flag"
                 />
               </g>
             </g>
             <foreignObject
-              v-for="marker in clusterMarkers" :key="marker.id"
-              :x="marker.x - 14" :y="marker.y - 36" width="28" height="52"
+              v-for="marker in clusterMarkers" v-show="marker.visible" :key="marker.id"
+              v-memo="[marker.visible, marker.flagX, marker.flagY, flagSize, marker.label, marker.cluster.servers, marker.tooltip, props.selectedCountry, hoveredClusterId === marker.id || hoveredClusterId === marker.code]"
+              :x="marker.flagX - flagSize / 2" :y="marker.flagY - flagSize / 2" :width="flagSize" :height="flagSize"
               class="marker-trigger-box"
             >
               <div
@@ -218,7 +260,7 @@ const visualClusterMarkers = computed(() => {
               >
                 <AppTooltip
                   as="button"
-                  :content="clusterTooltip(marker.cluster)"
+                  :content="marker.tooltip"
                   class="map-cluster-trigger"
                   :class="{ 'is-active': hoveredClusterId === marker.id || hoveredClusterId === marker.code, 'is-muted': props.selectedCountry && marker.code !== props.selectedCountry }"
                   type="button"
@@ -314,6 +356,8 @@ const visualClusterMarkers = computed(() => {
 .marker-trigger-box { overflow: visible; }
 .marker-trigger-wrapper { width: 100%; height: 100%; }
 .marker-hit-area { fill: transparent; }
+.marker-leader { stroke: rgb(253 224 71 / 80%); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+.map-svg--texture { transform: translateZ(0); pointer-events: none; }
 .marker-visual-active .city-region { stroke: var(--emerald); stroke-width: 3; }
 /* Apply the shadow outside the clipped image so rounded flag edges do not cut it off. */
 .marker-visual-active .map-flag-frame {
@@ -523,6 +567,7 @@ const visualClusterMarkers = computed(() => {
   z-index: 14;
   display: grid;
   min-width: 0;
+  min-height: 0;
   max-height: 100%;
   align-content: start;
   grid-template-columns: var(--legend-grid-columns);
@@ -710,7 +755,7 @@ const visualClusterMarkers = computed(() => {
     --legend-copy-line-height: 1.2;
     --legend-name-font-size: 0.75rem;
     --legend-meta-font-size: 0.6rem;
-    width: 100%; max-height: 20rem; padding: 0.6rem; overscroll-behavior-y: contain;
+    width: 100%; height: 20rem; max-height: 20rem; padding: 0.6rem; overscroll-behavior-y: contain;
   }
   .legend-item { min-height: 44px; }
   .legend-modes button { min-height: 36px; padding: 0.3rem 0.6rem; font-size: 12px; }
