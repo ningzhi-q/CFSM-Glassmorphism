@@ -343,7 +343,7 @@ describe('浏览器实测得到的卡片表面契约', () => {
     expect(overview).toContain('backdrop-filter: blur(8px)')
   })
 
-  it('节点卡片沿用上游 glassTheme 默认预设的真实运行值与 14px 圆角', () => {
+  it('节点卡保留上游表面和圆角，按用户滚动反馈取消逐卡模糊层', () => {
     expect(stylesheet).toContain('--card-surface: rgb(241 245 249 / 74%)')
     expect(stylesheet).toContain('--card-surface-border: rgb(203 213 225 / 60%)')
     expect(stylesheet).toContain('--card-surface-hover: rgb(248 250 252 / 80%)')
@@ -351,7 +351,8 @@ describe('浏览器实测得到的卡片表面契约', () => {
     expect(stylesheet).toContain('--card-surface-hover: rgb(17 24 39 / 91%)')
     const card = stylesheet.slice(stylesheet.indexOf('.node-card {'), stylesheet.indexOf('.node-card:hover'))
     expect(card).toContain('border-radius: 14px')
-    expect(card).toContain('backdrop-filter: blur(14px) saturate(145%)')
+    expect(card).toContain('backdrop-filter: none')
+    expect(card).not.toContain('backdrop-filter: blur(')
     expect(card).toContain('box-shadow: var(--node-card-shadow, var(--card-surface-shadow))')
   })
 

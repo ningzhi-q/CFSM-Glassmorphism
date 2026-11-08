@@ -32,6 +32,8 @@ describe('release performance contracts', () => {
     expect(list).toContain('v-memo=')
     // 快速滚动不能依赖离屏占位补绘；43 台真实节点曾出现整块卡片内容消失。
     expect(home).not.toContain('server-grid--dense')
+    expect(home).toContain(':key="server.key"')
+    expect(home).not.toContain('cardTransitionKey(server)')
     expect(stylesheet).not.toMatch(/content-visibility:\s*(auto|hidden)/)
     expect(stylesheet).not.toMatch(/contain-intrinsic-size:/)
     expect(router.match(/component: \(\) => import\(/g)).toHaveLength(3)

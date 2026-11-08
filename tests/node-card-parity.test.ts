@@ -112,9 +112,9 @@ describe('离线卡照上游实际页面', () => {
     expect(stylesheet).not.toContain('inset: -14px')
   })
 
-  it('没有红圈，面板模糊 4px 并半透明', () => {
+  it('没有红圈，离线面板半透明且不创建模糊绘制层', () => {
     expect(stylesheet).not.toMatch(/\n\.node-card--offline \{/)
-    expect(block('.node-card--offline .node-probe')).toContain('filter: blur(4px)')
+    expect(block('.node-card--offline .node-probe')).toContain('filter: none')
     expect(block('.node-card--offline .node-probe')).toContain('opacity: 0.5')
   })
 

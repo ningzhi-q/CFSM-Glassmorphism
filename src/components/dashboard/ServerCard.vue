@@ -291,6 +291,7 @@ function hideMissingImage(event: Event): void {
 <template>
   <article
     class="node-card"
+    :data-server-key="server.key"
     :class="[
       `node-card--${density}`,
       { 'node-card--offline': !server.online },
