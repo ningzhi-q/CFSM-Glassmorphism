@@ -340,7 +340,7 @@ Earth renderer 和数据/协议层均未改动。
 第 9 轮为性能、稳定性与异常收敛，未改动首页布局、Header/Footer、节点卡片结构、Card/List 点击路径、详情视觉结构、Earth/Map 渲染方式、弹窗/抽屉与主要动画；`shallowRef`、`createGlassServerMapper()` WeakMap 缓存、`v-memo` 与预计算动画延迟均只降低重算开销，不改变可见 DOM 结构或渲染输出，因此不存在需要更新的截图/像素基线。
 
 - 375、430、768、1024、1440、1920 六档响应式结构由 `tests/responsive-contract.test.ts` 以源码断言锁定，本轮全部通过；无页面级横向溢出策略保持不变。
-- 首页大规模节点行为由 `tests/performance-contract.test.ts` 锁定：视图与逐节点组件不得出现 `fetch`/`setInterval`/`setTimeout`，`HomeView` 不引用 `fetchHistory`，列表保留 `v-memo` 与 `.server-grid--dense` 的 `content-visibility: auto`，路由保持 3 处懒加载 `import()`，运行时依赖仅 `pinia`/`vue`/`vue-router`。
+- 首页大规模节点行为由 `tests/performance-contract.test.ts` 锁定：视图与逐节点组件不得出现 `fetch`/`setInterval`/`setTimeout`，`HomeView` 不引用 `fetchHistory`，列表保留 `v-memo`；快速滚动修复后节点卡片始终绘制，不再使用 `content-visibility` 离屏占位，路由保持 3 处懒加载 `import()`，运行时依赖仅 `pinia`/`vue`/`vue-router`。
 - 50+/64 节点首页加载经 `tests/api.test.ts`、`tests/dashboard.test.ts` 与 `tests/glassmorphism-adapter.test.ts` 核验：单次 `/api/servers`、无逐节点详情/历史请求，实时更新仅重算发生变化的节点视图模型。
 - WebSocket 断连、503、重连风暴、可见性 hide/show 与历史陈旧响应/并发切换由 `tests/websocket.test.ts`、`tests/http.test.ts`、`tests/dashboard-realtime.test.ts`、`tests/detail-realtime.test.ts` 及详情 store 的控件禁用 + `revision`/AbortController 覆盖，行为稳定，无运行时异常。
 - 本轮未发现由第 9 轮改动引入的视觉回归；与原 Komari Glassmorphism 的高保真差异（若有）仅记录、留待第 9.5 轮。
@@ -400,3 +400,7 @@ Earth renderer 和数据/协议层均未改动。
 - 浏览器控制台没有 warning 或 error。
 
 375px 初验发现页头最右侧 tooltip 的隐藏气泡扩大了文档宽度；气泡改为右对齐后复验通过。
+
+## 用户反馈：快速滚动卡片出现色块
+
+此前超过 30 台节点时会启用 `content-visibility: auto`、`contain: layout paint style` 和固定 330px 占位高度。在 43 台实际节点的长页面快速滚动中，卡片会先出现背景占位后才绘制内容；不同卡片密度也不能使用一个固定高度。现已取消整张卡片离屏绘制，保留批量映射、列表 v-memo、路由懒加载与超过 30 张关闭进场过渡。验收需要在真实 43 台节点、桌面与手机上连续大步滚动、往返滚动并切换密度，检查所有卡片均参与绘制、卡片高度和页面高度稳定、无页面横向溢出，并保留截图和结果记录。

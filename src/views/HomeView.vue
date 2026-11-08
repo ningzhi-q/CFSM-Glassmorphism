@@ -196,7 +196,6 @@ const quickCounts = computed<Record<QuickControlKey, number>>(() => {
     peak: base.length,
   }
 })
-const isDenseCollection = computed(() => visibleServers.value.length >= 30)
 // Komari enableNodeCardTransition：关闭页面动画或卡片超过 30 张（denseNodeAppearThreshold）时不播进场过渡。
 const cardTransition = computed(() => !theme.runtime.disablePageAnimation && visibleServers.value.length <= 30)
 const showSource = computed(() => (
@@ -607,7 +606,6 @@ onUnmounted(() => realtime.stop())
               :class="[
                 'server-grid',
                 `server-grid--size-${theme.runtime.nodeCardSize}`,
-                { 'server-grid--dense': isDenseCollection },
               ]"
             >
               <ServerCard

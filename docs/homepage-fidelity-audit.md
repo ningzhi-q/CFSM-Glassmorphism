@@ -96,7 +96,7 @@
 | H21 | 访客信息浮层 `VisitorInfo` | 关闭并隐藏 | 缺少组件 | — | 无公开访客 API，禁止伪造 | NECESSARY-CFSM-DIFFERENCE |
 | H22 | 首页 Ping 柱来自逐节点 ping 记录接口，窗口更长 | 只能用 `/api/servers` 的稀疏窗口 | 样本条数少 | — | 见 `docs/known-bugs.md` BUG-001 | KNOWN-BUG |
 | H23 | 丢包面板聚合值 | 三态在数据层保留，但面板数字看不出未配置/超时/真实 0 的区别 | 信息表达 | — | 见 `docs/known-bugs.md` BUG-002 | KNOWN-BUG |
-| H24 | 节点入场 `TransitionGroup` + `DeferredRender` 延迟渲染 | 有入场动画与 dense 延迟绘制策略 | 实现机制不同，观感等价 | P2 | 保留现有性能策略 | P2-ACCEPTED |
+| H24 | 节点入场 `TransitionGroup` + `DeferredRender` 延迟渲染 | 保留入场阈值；整卡始终绘制 | 用户快速滚动遇到大片占位，取消 dense 延迟绘制以确保连续显示 | P1 | 按用户反馈修复，增加快速滚动验收 | USER-FIXED |
 | H25 | **节点卡片**实际生效值为 `rgba(241,245,249,.74)` + 1px 边框 + `blur(14px) saturate(145%)` + `0 8px 28px` 阴影（`.node-card` 命中 `[data-slot='card']` 的 `!important` 规则） | 总览卡片仅约 36% 不透明且无边框，在浅色背景上几乎没有卡片感 | 节点卡片表面完全不同 | **P0** | 移植上游节点卡片表面令牌 | PASS |
 | H26 | `--radius: 0.625rem`（10px） | `--radius: 18px` | 全站圆角偏大 8px | P1 | 令牌改为 10px，`--radius-sm` 改为 6px | PASS |
 | H27 | `--font-sans` 以 `system-ui` 优先 | 以 `Inter` 优先 | 字形与字重观感不同 | P1 | 字体栈按上游改为系统字体优先 | PASS |

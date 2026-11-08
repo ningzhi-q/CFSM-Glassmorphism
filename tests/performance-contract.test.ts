@@ -21,7 +21,7 @@ describe('release performance contracts', () => {
     expect(source('../src/views/HomeView.vue')).not.toContain('fetchHistory')
   })
 
-  it('preserves batch rendering, dense lazy paint and lazy route boundaries', () => {
+  it('preserves batch rendering and lazy routes without skipping node-card paint', () => {
     const home = source('../src/views/HomeView.vue')
     const list = source('../src/components/dashboard/ServerList.vue')
     const stylesheet = source('../src/styles/main.css')
@@ -30,7 +30,10 @@ describe('release performance contracts', () => {
     expect(home).toContain('glassServerMapper.map')
     expect(home).toContain('NODE_ITEM_DELAY_STYLES')
     expect(list).toContain('v-memo=')
-    expect(stylesheet).toMatch(/\.server-grid--dense \.node-card\s*\{[^}]*content-visibility: auto/s)
+    // 快速滚动不能依赖离屏占位补绘；43 台真实节点曾出现整块卡片内容消失。
+    expect(home).not.toContain('server-grid--dense')
+    expect(stylesheet).not.toMatch(/content-visibility:\s*(auto|hidden)/)
+    expect(stylesheet).not.toMatch(/contain-intrinsic-size:/)
     expect(router.match(/component: \(\) => import\(/g)).toHaveLength(3)
   })
 

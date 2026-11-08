@@ -2292,11 +2292,8 @@ a {
   background: var(--line-strong);
 }
 
-.server-grid--dense .node-card {
-  content-visibility: auto;
-  contain: layout paint style;
-  contain-intrinsic-size: 0 330px;
-}
+/* 节点卡片始终完整绘制。content-visibility 的离屏占位与毛玻璃表面在快速
+ * 滚动时会出现未绘制的大色块，并让不同密度的卡片发生高度跳变。 */
 
 /*
  * Round 9.9: 节点列表对齐 Komari NodeList。

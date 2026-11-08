@@ -365,3 +365,7 @@ probe 三态、多 API Base、主题设置、Earth 三 renderer 与点击路径�
 ## 用户增强：分组排序
 
 `domain/group-order.ts` 负责完整名称解析、去重、已指定分组优先和边界移动。`DashboardControls` 对已有分组应用统一 runtime 的 `groupOrder`，全部节点作为独立首项。`GroupOrderDialog` 只负责编辑与调用 store，不发起独立请求。设置 schema 新增一个字符串字段，共 49 项。首页的 `saveGroupOrderBackend` 读取最新后端快照后提交单字段变更的完整对象，并仅清除排序本地覆盖；与其它保存共享保存状态，失败不改现有层。当前选中的分组仍由独立视图 store 缓存，不受标签排列影响。
+
+## 快速滚动绘制修复
+
+首页取消达到 30 台时给整张节点卡应用的 `content-visibility` 与固定高度占位。43 台节点下快速滚动不再需要等待离屏补绘；各密度由真实内容决定高度。保留 batch mapper、列表 v-memo、路由异步加载及超过 30 张关闭进场动画的阈值；没有新增按节点请求、定时器或滚动监听。
