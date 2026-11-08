@@ -709,7 +709,7 @@ export function buildGeneralCards(
   const udpCount = sum(online.map((server) => server.udpConnections))
   const connectionCount = tcpCount === null && udpCount === null ? null : (tcpCount ?? 0) + (udpCount ?? 0)
   const coreCount = sum(servers.map((server) => server.cpuCores))
-  const regionEntries = distribution(servers.map((server) => server.region ?? null))
+  const regionEntries = distribution(servers.map((server) => server.location?.countryCode ?? server.region ?? null))
   const regions = regionEntries.length
   const systemEntries = distribution(servers.map((server) => server.operatingSystem))
   const topSystem = systemEntries[0] ?? null

@@ -6,6 +6,7 @@ import type {
   SiteConfig,
 } from '@/types/cfsm'
 import { DEFAULT_PROBE_LABELS, PROBE_TARGETS } from '@/constants/probes'
+import { splitLocationTags } from './location-tags'
 import type {
   GlassLatencySample,
   GlassResourceMetric,
@@ -66,6 +67,7 @@ function serverKey(server: CfsmServer): string {
 
 export function toGlassServer(server: CfsmServer, config: SiteConfig | null): GlassServer {
   const labels = config?.probeLabels ?? DEFAULT_PROBE_LABELS
+  const location = splitLocationTags(server.tags)
 
   return {
     key: serverKey(server),
@@ -74,7 +76,8 @@ export function toGlassServer(server: CfsmServer, config: SiteConfig | null): Gl
     sourceLabel: server.source.label,
     name: server.name,
     group: server.group,
-    tags: server.tags,
+    tags: location.tags,
+    location: location.location,
     providerTags: server.providerTags,
     region: server.region,
     price: server.price,

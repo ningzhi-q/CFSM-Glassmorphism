@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import AppTooltip from '@/components/ui/AppTooltip.vue'
+import AppDialog from '@/components/ui/AppDialog.vue'
+import { countryName } from '@/utils/country-name'
+import type { RegionCluster } from '@/composables/useServerGeoClusters'
 import EARTH_DAY_TEXTURE from '@/assets/earth/earth-blue-marble.jpg'
 import EARTH_BUMP_MAP from '@/assets/earth/earth-topology.png'
 import EARTH_SPECULAR_MAP from '@/assets/earth/earth-water.png'
@@ -16,7 +20,17 @@ const props = defineProps<{
   servers: readonly GlassServer[]
   stopped?: boolean
   isDark?: boolean
+  selectedCountry?: string | null
 }>()
+
+const emit = defineEmits<{
+  selectCountry: [code: string]
+  selectServer: [server: GlassServer]
+}>()
+const legendMode = ref<'cities' | 'countries'>('cities')
+const hoveredClusterId = ref<string | null>(null)
+const selectedClusterId = ref<string | null>(null)
+const dialogOpen = ref(false)
 
 const MAP_WIDTH = 1440
 const MAP_HEIGHT = 720
@@ -32,6 +46,7 @@ interface MapPoint {
 }
 
 interface ClusterMarker {
+  cluster: RegionCluster
   id: string
   index: number
   code: string
@@ -44,13 +59,50 @@ interface ClusterMarker {
 
 const {
   regionClusters,
-  totalServers,
-  onlineServers,
-  offlineServers,
 } = useServerGeoClusters(() => props.servers)
 
+const selectedServers = computed(() => props.selectedCountry
+  ? regionClusters.value.filter((cluster) => cluster.code === props.selectedCountry).flatMap((cluster) => cluster.members)
+  : props.servers)
+const totalServers = computed(() => selectedServers.value.length)
+const onlineServers = computed(() => selectedServers.value.filter((server) => server.online).length)
+const offlineServers = computed(() => totalServers.value - onlineServers.value)
+const countryClusters = computed<RegionCluster[]>(() => {
+  const countries = new Map<string, RegionCluster>()
+  for (const cluster of regionClusters.value) {
+    const country = countries.get(cluster.code)
+    if (country) {
+      country.servers += cluster.servers
+      country.onlineServers += cluster.onlineServers
+      country.members = [...country.members, ...cluster.members]
+    } else {
+      countries.set(cluster.code, { ...cluster, id: cluster.code, label: countryName(cluster.code), members: [...cluster.members] })
+    }
+  }
+  return [...countries.values()].sort((a, b) => b.servers - a.servers || a.code.localeCompare(b.code))
+})
+const legendClusters = computed(() => legendMode.value === 'countries' ? countryClusters.value : regionClusters.value)
+const selectedCluster = computed(() => regionClusters.value.find((cluster) => cluster.id === selectedClusterId.value))
+watch(regionClusters, () => {
+  if (selectedClusterId.value && !selectedCluster.value) dialogOpen.value = false
+})
+function clusterTooltip(cluster: RegionCluster): string {
+  const names = cluster.members.map((server) => `${server.name}（${server.online ? '在线' : '离线'}）`).join('、')
+  const source = cluster.members.some((server) => server.location?.source === 'legacy-ip')
+    ? '旧站 IP 属地参考，不代表实时或物理位置' : cluster.members.some((server) => server.location)
+      ? '运营者提供的位置' : '国家/地区中心参考位置'
+  return `${cluster.label} · ${countryName(cluster.code)} · ${cluster.onlineServers}/${cluster.servers} 在线\n${names}\n${source}`
+}
+function openCluster(cluster: RegionCluster): void {
+  selectedClusterId.value = cluster.id
+  dialogOpen.value = true
+}
+function openMember(server: GlassServer): void {
+  dialogOpen.value = false
+  emit('selectServer', server)
+}
 const legendDensityClass = computed(() => {
-  const count = regionClusters.value.length
+  const count = legendClusters.value.length
   if (count > 36) return 'legend-ultra-dense'
   if (count > 28) return 'legend-very-dense'
   if (count > 20) return 'legend-dense'
@@ -82,12 +134,13 @@ function projectCoord(coord: [number, number]): MapPoint {
 const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map((cluster, index) => {
   const point = projectCoord(cluster.coord)
   return {
+    cluster,
     id: cluster.id,
     index: index + 1,
     code: cluster.code,
     label: cluster.label,
-    // CFSM 公开主题 API 不提供 ASN/Provider，因此只显示可靠的地区代码，不猜测运营商。
-    meta: cluster.code || 'NODE',
+    // ASN 仅来自运营者明确填写的标签。
+    meta: `${cluster.asn ? `${cluster.asn} · ` : ''}${countryName(cluster.code)}`,
     x: point.x,
     y: point.y,
     statusClass: cluster.onlineServers > 0 ? 'is-online' : 'is-offline',
@@ -103,7 +156,7 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
           class="map-svg"
           :viewBox="`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`"
           preserveAspectRatio="xMidYMid meet"
-          role="img"
+          role="group"
           aria-label="真实地球贴图节点世界地图"
         >
           <defs>
@@ -129,20 +182,43 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
           <rect :width="MAP_WIDTH" :height="MAP_HEIGHT" class="earth-overlay" />
 
           <g class="city-points">
-            <template v-for="marker in clusterMarkers" :key="`${marker.id}-point`">
+            <g v-for="marker in clusterMarkers" :key="`${marker.id}-visual`" :class="{ 'marker-visual-muted': props.selectedCountry && marker.code !== props.selectedCountry, 'marker-visual-active': hoveredClusterId === marker.id || hoveredClusterId === marker.code }">
+
+
               <circle :cx="marker.x" :cy="marker.y" r="11" class="city-region" :class="marker.statusClass" />
               <circle :cx="marker.x" :cy="marker.y" r="3.8" class="city-dot" :class="marker.statusClass" />
               <image
-                v-if="marker.code"
-                :href="flagUrl(marker.code)"
-                :x="marker.x - 13"
-                :y="marker.y - 34"
-                width="26"
-                height="26"
-                preserveAspectRatio="xMidYMid slice"
-                class="map-flag"
+                v-if="marker.code" :href="flagUrl(marker.code)"
+                :x="marker.x - 13" :y="marker.y - 34" width="26" height="26"
+                preserveAspectRatio="xMidYMid slice" class="map-flag"
               />
-            </template>
+            </g>
+            <foreignObject
+              v-for="marker in clusterMarkers" :key="marker.id"
+              :x="marker.x - 14" :y="marker.y - 36" width="28" height="52"
+              class="marker-trigger-box"
+            >
+              <div xmlns="http://www.w3.org/1999/xhtml" class="marker-trigger-wrapper">
+                <AppTooltip
+                  as="button"
+                  :content="clusterTooltip(marker.cluster)"
+                  class="map-cluster-trigger"
+                  :class="{ 'is-active': hoveredClusterId === marker.id || hoveredClusterId === marker.code, 'is-muted': props.selectedCountry && marker.code !== props.selectedCountry }"
+                  type="button"
+                  tabindex="0"
+                  :aria-label="`${marker.label}，查看 ${marker.cluster.servers} 台节点`"
+                  @mouseenter="hoveredClusterId = marker.id"
+                  @mouseleave="hoveredClusterId = null"
+                  @focus="hoveredClusterId = marker.id"
+                  @blur="hoveredClusterId = null"
+                  @click="openCluster(marker.cluster)"
+                  @keydown.enter.prevent="openCluster(marker.cluster)"
+                  @keydown.space.prevent="openCluster(marker.cluster)"
+                >
+                  <span class="sr-only">{{ marker.label }}</span>
+                </AppTooltip>
+              </div>
+            </foreignObject>
           </g>
         </svg>
 
@@ -163,23 +239,79 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
           EARTH MAP
           <span v-if="totalServers > 0">{{ onlineRate }}%</span>
         </div>
-        <div v-for="marker in clusterMarkers" :key="marker.id" class="legend-item" :class="marker.statusClass">
-          <span class="legend-index">{{ marker.index }}</span>
-          <img
-            v-if="marker.code" :src="flagUrl(marker.code)" :alt="marker.code" class="legend-flag"
-            @error="hideMissingFlag"
-          >
-          <span class="legend-copy">
-            <span v-if="marker.label" class="legend-name">{{ marker.label }}</span>
-            <span class="legend-meta">{{ marker.meta }}</span>
-          </span>
+        <div class="legend-modes" role="group" aria-label="地图列表显示方式">
+          <button type="button" :aria-pressed="legendMode === 'cities'" @click="legendMode = 'cities'">
+            城市 / 节点
+          </button>
+          <button type="button" :aria-pressed="legendMode === 'countries'" @click="legendMode = 'countries'">
+            国家 / 地区
+          </button>
+          <button v-if="props.selectedCountry" type="button" @click="emit('selectCountry', props.selectedCountry)">
+            清除筛选
+          </button>
         </div>
+        <button
+          v-for="(cluster, index) in legendClusters" :key="cluster.id" type="button"
+          class="legend-item" :class="{
+            'is-online': cluster.onlineServers > 0, 'is-offline': cluster.onlineServers === 0,
+            'is-active': hoveredClusterId === cluster.id || props.selectedCountry === cluster.code,
+            'is-muted': props.selectedCountry && cluster.code !== props.selectedCountry,
+          }"
+          :aria-label="legendMode === 'countries' ? `筛选${cluster.label}，${cluster.servers}台节点` : `查看${cluster.label}，${cluster.servers}台节点`"
+          :aria-pressed="legendMode === 'countries' ? props.selectedCountry === cluster.code : undefined"
+          :title="clusterTooltip(cluster)"
+          @mouseenter="hoveredClusterId = cluster.id"
+          @mouseleave="hoveredClusterId = null"
+          @focus="hoveredClusterId = cluster.id"
+          @blur="hoveredClusterId = null"
+          @click="legendMode === 'countries' ? emit('selectCountry', cluster.code) : openCluster(cluster)"
+        >
+          <span class="legend-index">{{ index + 1 }}</span>
+          <img :src="flagUrl(cluster.code)" :alt="countryName(cluster.code)" class="legend-flag" @error="hideMissingFlag">
+          <span class="legend-copy">
+            <span class="legend-name">{{ cluster.label }}</span>
+            <span class="legend-meta">{{ cluster.onlineServers }}/{{ cluster.servers }} 在线 · {{ countryName(cluster.code) }}</span>
+          </span>
+        </button>
       </div>
     </div>
+    <AppDialog
+      v-model:open="dialogOpen"
+      :title="selectedCluster ? `${selectedCluster.label} · ${countryName(selectedCluster.code)}` : '节点位置'"
+      :description="selectedCluster ? `${selectedCluster.onlineServers}/${selectedCluster.servers} 在线，点击节点查看详情。${selectedCluster.members.some(server => server.location?.source === 'legacy-ip') ? '位置来自旧站 IP 属地参考。' : '位置来自运营者信息或国家中心。'}` : undefined"
+    >
+      <div class="location-members">
+        <button v-for="server in selectedCluster?.members ?? []" :key="server.key" type="button" @click="openMember(server)">
+          <span :class="server.online ? 'member-online' : 'member-offline'">{{ server.online ? '在线' : '离线' }}</span>
+          <strong>{{ server.name }}</strong>
+          <span>{{ server.group || '未分组' }}</span>
+          <span>查看详情 →</span>
+        </button>
+      </div>
+    </AppDialog>
   </div>
 </template>
 
 <style scoped>
+
+.map-cluster-trigger { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; outline: none; }
+.marker-trigger-box { overflow: visible; }
+.marker-trigger-wrapper { width: 100%; height: 100%; }
+.marker-hit-area { fill: transparent; }
+.marker-visual-active .city-region { stroke: var(--emerald); stroke-width: 3; }
+.is-muted, .marker-visual-muted { opacity: 0.3; }
+.map-cluster-trigger:focus-visible { outline: 2px solid var(--emerald); border-radius: 4px; }
+.legend-modes { display: flex; grid-column: 1 / -1; flex-wrap: wrap; gap: 0.25rem; }
+.legend-modes button { border: 1px solid var(--glass-border); border-radius: 999px; background: var(--control-surface); color: var(--glass-text); padding: 0.25rem 0.45rem; font: inherit; font-size: 0.65rem; cursor: pointer; }
+.legend-modes button[aria-pressed='true'] { color: var(--emerald); border-color: var(--emerald); }
+.legend-item { cursor: pointer; text-align: left; font: inherit; min-height: 1.7rem; }
+.legend-item:hover, .legend-item:focus-visible, .legend-item.is-active { outline: 2px solid var(--emerald); outline-offset: -1px; }
+.location-members { display: grid; gap: 0.5rem; }
+.location-members button { display: flex; align-items: center; gap: 0.65rem; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 0.75rem; background: var(--control-surface); color: var(--glass-text); text-align: left; cursor: pointer; flex-wrap: wrap; }
+.location-members button:hover, .location-members button:focus-visible { outline: 2px solid var(--emerald); }
+.member-online { color: var(--emerald); }
+.member-offline { color: var(--red); }
+
 .earth-map-scroll {
   position: relative;
   z-index: 0;
@@ -257,15 +389,15 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
   mix-blend-mode: soft-light;
 }
 
-:global([data-theme='dark']) .earth-image-base {
+:global(html[data-theme='dark'] .earth-map-shell .earth-image-base) {
   filter: saturate(1.1) contrast(1.04) brightness(0.92);
 }
 
-:global([data-theme='dark']) .earth-image-bump {
+:global(html[data-theme='dark'] .earth-map-shell .earth-image-bump) {
   opacity: 0.28;
 }
 
-:global([data-theme='dark']) .earth-image-water {
+:global(html[data-theme='dark'] .earth-map-shell .earth-image-water) {
   opacity: 0.2;
 }
 
@@ -375,10 +507,10 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
   align-content: start;
   grid-template-columns: var(--legend-grid-columns);
   gap: var(--legend-gap);
-  overflow: hidden;
+  overflow-y: auto;
   padding: 0.7rem 0.75rem;
   background: rgb(255 255 255 / 8%);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .legend-title {
@@ -509,33 +641,33 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
   white-space: nowrap;
 }
 
-:global([data-theme='dark']) .earth-map {
+:global(html[data-theme='dark'] .earth-map-shell .earth-map) {
   border-right-color: rgb(125 211 252 / 12%);
 }
 
-:global([data-theme='dark']) .legend-panel {
+:global(html[data-theme='dark'] .earth-map-shell .legend-panel) {
   background: rgb(15 23 42 / 18%);
 }
 
-:global([data-theme='dark']) .legend-title,
-:global([data-theme='dark']) .legend-item {
+:global(html[data-theme='dark'] .earth-map-shell .legend-title),
+:global(html[data-theme='dark'] .earth-map-shell .legend-item) {
   border-color: rgb(125 211 252 / 18%);
   background: rgb(15 23 42 / 58%);
 }
 
-:global([data-theme='dark']) .legend-title {
+:global(html[data-theme='dark'] .earth-map-shell .legend-title) {
   color: rgb(186 230 253 / 86%);
 }
 
-:global([data-theme='dark']) .legend-title span {
+:global(html[data-theme='dark'] .earth-map-shell .legend-title) span {
   color: rgb(110 231 183 / 92%);
 }
 
-:global([data-theme='dark']) .legend-name {
+:global(html[data-theme='dark'] .earth-map-shell .legend-name) {
   color: rgb(255 255 255 / 90%);
 }
 
-:global([data-theme='dark']) .legend-meta {
+:global(html[data-theme='dark'] .earth-map-shell .legend-meta) {
   color: rgb(186 230 253 / 66%);
 }
 

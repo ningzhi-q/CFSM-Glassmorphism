@@ -1,5 +1,14 @@
 import type { ProbeTarget, ProbeValue, ProviderTags, Reachability } from './cfsm'
 
+/** Explicit operator supplied coordinates; independent of reachability flags. */
+export interface ServerLocation {
+  latitude: number
+  longitude: number
+  countryCode: string
+  city: string | null
+  source: 'legacy-ip' | 'operator'
+}
+
 export interface GlassResourceMetric {
   used: number | null
   total: number | null
@@ -48,6 +57,7 @@ export interface GlassServer {
   /** 运营者在标签里约定的 ASN / 组织名（见 `services/cfsm/provider-tags.ts`），只用于厂商识别。 */
   providerTags: ProviderTags
   region: string | null
+  location?: ServerLocation | null
   price: string | null
   billingCycle: string | null
   currency: string | null

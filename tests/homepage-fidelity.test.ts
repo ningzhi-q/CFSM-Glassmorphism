@@ -293,7 +293,8 @@ describe('快捷控制预设对齐 Komari HOME_QUICK_CONTROL_PRESETS', () => {
 
   it('计数在当前分组与搜索范围内统计，排序类控制显示范围内的节点数（上游 getQuickControlCount）', () => {
     const home = readFileSync(new URL('../src/views/HomeView.vue', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
-    expect(home).toContain('const quickCountBase = computed(() => filterServers(glassServers.value, query.value, selectedGroup.value))')
+    expect(home).toContain('const quickCountBase = computed(() => filterServers(glassServers.value, query.value, selectedGroup.value)')
+    expect(home).toContain('!selectedCountry.value || serverCountry(server) === selectedCountry.value')
     for (const key of ['totalTraffic', 'upload', 'download', 'peak']) expect(home).toContain(`    ${key}: base.length,`)
     expect(home).toContain('favorite: base.filter((server) => preferences.isFavorite(server.key)).length')
   })

@@ -54,6 +54,7 @@ describe('控制色只被有上游对应的元素消费', () => {
       '.quick-controls button.is-active',
       '.state-panel button.state-panel__retry',
       '.finance-dialog__select, .finance-dialog__outline-button',
+      '.geography-filter',
     ])
   })
 

@@ -16,6 +16,7 @@ import type { DashboardSort } from '@/types/glassmorphism'
 export const useDashboardViewStore = defineStore('dashboard-view', () => {
   const query = ref('')
   const selectedGroup = ref<string>(ALL_GROUPS)
+  const selectedCountry = ref<string | null>(null)
   const sort = ref<DashboardSort>('order')
   const activeQuickFilter = ref<QuickControlKey | null>(null)
   const advancedToolsVisible = ref(false)
@@ -24,11 +25,13 @@ export const useDashboardViewStore = defineStore('dashboard-view', () => {
   function clearFilters(): void {
     query.value = ''
     selectedGroup.value = ALL_GROUPS
+    selectedCountry.value = null
   }
 
   return {
     query,
     selectedGroup,
+    selectedCountry,
     sort,
     activeQuickFilter,
     advancedToolsVisible,

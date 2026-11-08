@@ -170,7 +170,7 @@ describe('入口接线', () => {
 
   it('首页只在财务卡可见且确有跨币种换算时请求汇率', () => {
     expect(homeView).toContain("generalFinance.value?.state === 'visible' && generalFinance.value.summary.needsRates")
-    expect(homeView).toContain('financeNodesOf(glassServers.value)')
+    expect(homeView).toContain('financeNodesOf(filteredServers.value)')
   })
 
   it('详情页只在价格可见、选用了剩余价值卡、且币种不同时请求汇率', () => {

@@ -175,3 +175,7 @@ CFSM 仍只按可靠 `region` 做地球定位，后台仍外链 `/admin#admin`�
 - `/api/servers` 才包含 ping/loss 窗口；`/api/server` 不包含。窗口点稀疏且保留真实时间戳。
 - Ping/Loss 的 `false`、`null`、`0` 不可互换：分别表示未配置/缺失、明确超时、有效零值。Node 1–4 的名称与 probe 字段已由公开 config、详情、历史及 WebSocket 契约提供；旧版本缺失时只回退名称和 `false` 状态。
 - LuminaPlus 最新实现确实通过 `POST /api/theme_options` 保存完整配置。其仍存在“只读/本地保存”的旧注释和一个拒绝保存的兼容 stub；本项目以实际调用链与最新 CFSM 文档为准，不复制陈旧注释。
+
+## 城市地图与筛选联动补充
+
+参见 [城市定位与分组联动](location-interactions.md)。公共接口契约不变；显式位置资料使用现有 `tags`，无需新管理接口或主题设置键。总览和地图已接入当前分组 / 搜索 / 快捷筛选，平面地图增加国家筛选、可聚焦标记、位置提示及节点详情入口。无显式坐标时保留国家级降级。

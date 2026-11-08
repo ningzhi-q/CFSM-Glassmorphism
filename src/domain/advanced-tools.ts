@@ -3,6 +3,8 @@ import { cloneHistorySummary, numericWindowSamples } from '@/domain/probe-window
 import { daysUntilExpiry, parseTrafficLimitBytes, trafficUsage } from '@/domain/theme-presentation'
 import type { ThemeSettings } from '@/theme/settings'
 import type { GlassServer } from '@/types/glassmorphism'
+import { formatCityNameZh } from '@/utils/city-name'
+import { countryName } from '@/utils/country-name'
 
 type Coordinates = readonly [latitude: number, longitude: number]
 
@@ -40,8 +42,11 @@ const REGION_ALIASES: Readonly<Record<string, string>> = {
 }
 
 export interface EarthPoint {
+  id: string
   code: string
   region: string
+  city?: string | null
+  asn?: string | null
   latitude: number
   longitude: number
   x: number
@@ -63,18 +68,27 @@ export function resolveRegionCoordinates(region: string | null): { code: string,
 export function buildEarthPoints(servers: readonly GlassServer[]): EarthPoint[] {
   const grouped = new Map<string, EarthPoint>()
   for (const server of servers) {
-    const location = resolveRegionCoordinates(server.region)
+    const location = server.location
+      ? { code: server.location.countryCode, latitude: server.location.latitude, longitude: server.location.longitude }
+      : resolveRegionCoordinates(server.region)
     if (!location) continue
-    const current = grouped.get(location.code)
+    const city = server.location?.city
+    const id = server.location
+      ? `${location.code.toLowerCase()}-${city || `${location.latitude.toFixed(2)},${location.longitude.toFixed(2)}`}`
+      : location.code.toLowerCase()
+    const current = grouped.get(id)
     if (current) {
       current.total += 1
       current.online += server.online ? 1 : 0
       current.servers.push(server)
       continue
     }
-    grouped.set(location.code, {
+    grouped.set(id, {
       ...location,
-      region: server.region?.trim() || location.code,
+      id,
+      city,
+      asn: server.providerTags.asn,
+      region: formatCityNameZh(city) || city || countryName(location.code),
       x: (location.longitude + 180) / 360 * 100,
       y: (90 - location.latitude) / 180 * 100,
       total: 1,

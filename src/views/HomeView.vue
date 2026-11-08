@@ -39,6 +39,8 @@ import { bootstrapKey } from '@/domain/bootstrap'
 import { injectedSiteTitleKey, injectedTitleForPrimary, resolveSiteTitle } from '@/domain/site-title'
 import { configReady } from '@/domain/config-readiness'
 import { issueReason } from '@/domain/issue-copy'
+import { resolveRegionCoordinates } from '@/domain/advanced-tools'
+import { countryName } from '@/utils/country-name'
 import type { ServerSourceFailure } from '@/types/cfsm'
 import type { DashboardSort, DashboardViewMode, GlassServer } from '@/types/glassmorphism'
 
@@ -60,7 +62,7 @@ const coldStartCover = bootstrap?.coverVisible ?? ref(false)
 // 首页浏览状态放在会话级 store 中，保证「首页 → 详情 → 返回首页」后
 // 搜索词、分组、排序与快捷筛选保持不变，不需要刷新或重新筛选。
 const viewState = useDashboardViewStore()
-const { query, selectedGroup, sort, activeQuickFilter, advancedToolsVisible } = storeToRefs(viewState)
+const { query, selectedGroup, selectedCountry, sort, activeQuickFilter, advancedToolsVisible } = storeToRefs(viewState)
 const refreshing = ref(false)
 // Komari UI_CONFIG.motion：staggerMs 35、staggerLimit 12。
 const NODE_ITEM_DELAY_STYLES = Array.from({ length: 13 }, (_, index) => ({
@@ -113,10 +115,10 @@ const summary = computed(() => summarizeServers(glassServers.value))
  * 总览里的剩余价值 / 月费用 / 年费用。只有选用了这些卡、价格对访客可见、而且确有跨币种换算时
  * 才请求汇率；站点关闭 show_price 的节点不参与合计，明细弹窗也只拿到这些节点。
  */
-const financeNodes = computed(() => financeNodesOf(glassServers.value))
+const financeNodes = computed(() => financeNodesOf(filteredServers.value))
 const generalFinance = computed(() => (
   siteConfigReady.value && showGeneralCards.value
-    ? generalFinanceContext(glassServers.value, theme.runtime, {
+    ? generalFinanceContext(filteredServers.value, theme.runtime, {
       priceVisible: priceVisible.value,
       target: finance.preferences.displayCurrency,
       view: finance.view,
@@ -125,15 +127,8 @@ const generalFinance = computed(() => (
     })
     : undefined
 ))
-watch(
-  () => generalFinance.value?.state === 'visible' && generalFinance.value.summary.needsRates,
-  (needed) => {
-    if (needed) void finance.ensureRates()
-  },
-  { immediate: true },
-)
 const groups = computed(() => availableGroups(glassServers.value))
-const filteredServers = computed(() => {
+const scopeServers = computed(() => {
   const servers = filterServers(
     glassServers.value,
     query.value,
@@ -145,6 +140,28 @@ const filteredServers = computed(() => {
   if (activeQuickFilter.value === 'expiring') return servers.filter((server) => isExpiring(server, theme.runtime.homeExpiringDays))
   return servers
 })
+function serverCountry(server: GlassServer): string | null {
+  return server.location?.countryCode ?? resolveRegionCoordinates(server.region)?.code ?? null
+}
+const filteredServers = computed(() => selectedCountry.value
+  ? scopeServers.value.filter((server) => serverCountry(server) === selectedCountry.value)
+  : scopeServers.value)
+function selectCountry(code: string): void {
+  selectedCountry.value = selectedCountry.value === code ? null : code
+}
+watch(selectedGroup, () => { selectedCountry.value = null })
+watch(scopeServers, (servers) => {
+  if (selectedCountry.value && !servers.some((server) => serverCountry(server) === selectedCountry.value)) {
+    selectedCountry.value = null
+  }
+})
+watch(
+  () => generalFinance.value?.state === 'visible' && generalFinance.value.summary.needsRates,
+  (needed) => {
+    if (needed) void finance.ensureRates()
+  },
+  { immediate: true },
+)
 const visibleServers = computed(() => sortServers(
   filteredServers.value,
   sort.value,
@@ -154,7 +171,8 @@ const visibleServers = computed(() => sortServers(
  * 与上游 `quickControlCounts` / `getQuickControlCount` 一致：在当前分组与搜索范围内计数，
  * 不受正在使用的快捷筛选影响；排序类控制（总流量、上行、下行、峰值）显示范围内的节点数。
  */
-const quickCountBase = computed(() => filterServers(glassServers.value, query.value, selectedGroup.value))
+const quickCountBase = computed(() => filterServers(glassServers.value, query.value, selectedGroup.value)
+  .filter((server) => !selectedCountry.value || serverCountry(server) === selectedCountry.value))
 const quickCounts = computed<Record<QuickControlKey, number>>(() => {
   const base = quickCountBase.value
   return {
@@ -476,16 +494,19 @@ onUnmounted(() => realtime.stop())
             <EarthMap
               v-if="showEarth"
               class="general-stage__earth"
-              :servers="glassServers"
+              :servers="scopeServers"
+              :selected-country="selectedCountry"
               :renderer="theme.runtime.earthRenderer"
               :stopped="theme.runtime.stopEarth"
               :is-dark="isDark"
+              @select-country="selectCountry"
+              @select-server="openServer"
             />
 
             <OverviewCards
               v-if="showGeneralCards"
               class="general-stage__cards"
-              :servers="glassServers"
+              :servers="filteredServers"
               :settings="theme.runtime"
               :finance="generalFinance"
               :finance-nodes="financeNodes"
@@ -494,7 +515,7 @@ onUnmounted(() => realtime.stop())
 
           <AdvancedTools
             v-if="showAdvancedTools"
-            :servers="glassServers"
+            :servers="filteredServers"
             :settings="theme.runtime"
             :site-title="siteTitle ?? ''"
             @select="openServer"
@@ -523,6 +544,12 @@ onUnmounted(() => realtime.stop())
           </div>
 
           <div v-else class="dashboard-node-info">
+            <div v-if="selectedCountry" class="geography-filter" role="status">
+              <span>当前筛选：{{ countryName(selectedCountry) }} · {{ visibleServers.length }} 台节点</span>
+              <button type="button" @click="selectedCountry = null">
+                清除国家筛选
+              </button>
+            </div>
             <DashboardControls
               v-model:query="query"
               v-model:group="selectedGroup"

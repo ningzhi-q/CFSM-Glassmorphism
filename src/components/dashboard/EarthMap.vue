@@ -18,6 +18,11 @@ const props = defineProps<{
   renderer: EarthRenderer
   stopped: boolean
   isDark: boolean
+  selectedCountry?: string | null
+}>()
+const emit = defineEmits<{
+  selectCountry: [code: string]
+  selectServer: [server: GlassServer]
 }>()
 
 const NodeEarthRealisticGlobe = defineAsyncComponent(
@@ -46,5 +51,8 @@ const earthComponent = computed(() => {
     :servers="props.servers"
     :stopped="props.stopped"
     :is-dark="props.isDark"
+    :selected-country="props.selectedCountry"
+    @select-country="emit('selectCountry', $event)"
+    @select-server="emit('selectServer', $event)"
   />
 </template>

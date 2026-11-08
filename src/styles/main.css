@@ -6121,3 +6121,6 @@ a {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+.geography-filter { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 0.8rem; border: 1px solid var(--glass-border); border-radius: 0.75rem; background: var(--control-surface); color: var(--glass-text); }
+.geography-filter button { background: transparent; border: 0; color: var(--emerald); cursor: pointer; font: inherit; }

@@ -347,3 +347,7 @@ probe 三态、多 API Base、主题设置、Earth 三 renderer 与点击路径�
 - **发布护栏按真实构成重设**：`validate:dist` 体积预算改为 JS 2816 KiB / CSS 128 KiB / 总资源 6144 KiB；Komari RPC 残留扫描由裸 `common:` 收紧为字符串字面量正则，避免误判 three.js shader chunk 等第三方内部结构。
 
 本轮未完成的 P1/P2（总览卡片结构、NodeCard/NodeList 内部结构、echarts 图表族、详情页层级、图标与 UI 基元、间距校准、死 CSS 清理）在 `docs/fidelity-audit.md` 中逐条列出，不得视为已对齐。
+
+## 城市地图与筛选联动补充
+
+参见 [城市定位与分组联动](location-interactions.md)。公共接口契约不变；显式位置资料使用现有 `tags`，无需新管理接口或主题设置键。总览和地图已接入当前分组 / 搜索 / 快捷筛选，平面地图增加国家筛选、可聚焦标记、位置提示及节点详情入口。无显式坐标时保留国家级降级。

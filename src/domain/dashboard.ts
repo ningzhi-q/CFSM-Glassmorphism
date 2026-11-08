@@ -44,6 +44,8 @@ export function filterServers(
       server.name,
       server.group,
       server.region,
+      server.location?.city,
+      server.location?.countryCode,
       server.cpuInfo,
       server.operatingSystem,
       server.architecture,

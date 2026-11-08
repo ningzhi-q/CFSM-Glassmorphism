@@ -5,16 +5,16 @@ import type { GlassServer } from '@/types/glassmorphism'
 /**
  * Komari `useNodeGeoClusters` 的 CFSM 等价实现。
  *
- * 与上游的唯一差异是定位来源：Komari 允许外部 IP Geo 查询得到城市级坐标，
- * 而 CFSM 公开主题 API 不提供真实 IP、ASN 或城市，`ip_v4`/`ip_v6` 只是可达性标志。
- * 因此这里只接受可可靠归一化的 `region`，并聚合到国家/地区中心；
- * 无法定位的节点不放点，也绝不按名称、标签或可达性猜测位置。
+ * 接受运营者在 tags 中明确提供的坐标与城市；缺失时回退到 region 中心。
+ * 不在浏览器查询 IP，不把 ip_v4/ip_v6 可达性标志当作地址。
  */
 export interface RegionCluster {
   id: string
   code: string
   coord: [number, number]
   label: string
+  city?: string | null
+  asn?: string | null
   servers: number
   onlineServers: number
   members: readonly GlassServer[]
@@ -35,10 +35,12 @@ export function useServerGeoClusters(source: MaybeRefOrGetter<readonly GlassServ
 
   const regionClusters = computed<RegionCluster[]>(() => buildEarthPoints(allServers.value)
     .map((point) => ({
-      id: point.code.toLowerCase(),
+      id: point.id,
       code: point.code,
       coord: [point.latitude, point.longitude] as [number, number],
       label: point.region,
+      city: point.city,
+      asn: point.asn,
       servers: point.total,
       onlineServers: point.online,
       members: point.servers,
