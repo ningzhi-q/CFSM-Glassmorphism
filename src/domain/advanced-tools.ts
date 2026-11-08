@@ -103,7 +103,7 @@ export function serverMapLocation(server: GlassServer): {
   latitude: number
   longitude: number
   city: string | null
-  source: 'country' | 'legacy-ip' | 'operator'
+  source: 'country' | 'legacy-ip' | 'operator' | 'cloudflare-ip'
 } | null {
   const region = resolveRegionCoordinates(server.region)
   const geo = server.location

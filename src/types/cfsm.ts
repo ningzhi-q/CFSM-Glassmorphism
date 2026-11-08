@@ -73,6 +73,15 @@ export interface ProviderTags {
   org: string | null
 }
 
+export interface ReportedLocation {
+  latitude: number
+  longitude: number
+  countryCode: string
+  city: string | null
+  source: 'cloudflare-ip'
+  observedAt: number
+}
+
 export interface CfsmServer {
   id: string
   source: ApiSource
@@ -124,6 +133,7 @@ export interface CfsmServer {
   operatingSystem: string | null
   kernelVersion: string | null
   region: string | null
+  reportedLocation?: ReportedLocation | null
   ipV4Reachable: Reachability
   ipV6Reachable: Reachability
   bootTime: NullableNumber

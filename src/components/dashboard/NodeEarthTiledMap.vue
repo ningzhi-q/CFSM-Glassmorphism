@@ -98,12 +98,22 @@ const selectedCluster = computed(() => regionClusters.value.find((cluster) => cl
 watch(regionClusters, () => {
   if (selectedClusterId.value && !selectedCluster.value) dialogOpen.value = false
 })
+function clusterTitle(cluster: RegionCluster): string {
+  const country = countryName(cluster.code)
+  return cluster.label === country ? country : `${cluster.label} · ${country}`
+}
+function clusterLocationDescription(cluster: RegionCluster): string {
+  const sources = new Set(cluster.members.map(server => serverMapLocation(server)?.source))
+  const descriptions: string[] = []
+  if (sources.has('cloudflare-ip')) descriptions.push('上报 IP 自动识别的属地参考，不代表物理位置')
+  if (sources.has('legacy-ip')) descriptions.push('旧站 IP 属地参考，不代表实时或物理位置')
+  if (sources.has('operator')) descriptions.push('运营者提供的位置')
+  if (sources.has('country')) descriptions.push('国家/地区中心参考位置')
+  return descriptions.join('；')
+}
 function clusterTooltip(cluster: RegionCluster): string {
   const names = cluster.members.map((server) => `${server.name}（${server.online ? '在线' : '离线'}）`).join('、')
-  const source = cluster.members.some((server) => serverMapLocation(server)?.source === 'legacy-ip')
-    ? '旧站 IP 属地参考，不代表实时或物理位置' : cluster.members.some((server) => serverMapLocation(server)?.source === 'operator')
-      ? '运营者提供的位置' : '国家/地区中心参考位置'
-  return `${cluster.label} · ${countryName(cluster.code)} · ${cluster.onlineServers}/${cluster.servers} 在线\n${names}\n${source}`
+  return `${clusterTitle(cluster)} · ${cluster.onlineServers}/${cluster.servers} 在线\n${names}\n${clusterLocationDescription(cluster)}`
 }
 function openCluster(cluster: RegionCluster): void {
   selectedClusterId.value = cluster.id
@@ -334,8 +344,8 @@ const visualClusterMarkers = computed(() => {
     </div>
     <AppDialog
       v-model:open="dialogOpen"
-      :title="selectedCluster ? `${selectedCluster.label} · ${countryName(selectedCluster.code)}` : '节点位置'"
-      :description="selectedCluster ? `${selectedCluster.onlineServers}/${selectedCluster.servers} 在线，点击节点查看详情。${selectedCluster.members.some(server => serverMapLocation(server)?.source === 'legacy-ip') ? '位置来自旧站 IP 属地参考。' : '位置来自运营者信息或国家中心。'}` : undefined"
+      :title="selectedCluster ? clusterTitle(selectedCluster) : '节点位置'"
+      :description="selectedCluster ? `${selectedCluster.onlineServers}/${selectedCluster.servers} 在线，点击节点查看详情。${clusterLocationDescription(selectedCluster)}。` : undefined"
     >
       <div class="location-members">
         <button v-for="server in selectedCluster?.members ?? []" :key="server.key" type="button" @click="openMember(server)">

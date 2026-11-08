@@ -389,3 +389,9 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 贴图 SVG 与交互 SVG 分层，贴图单独合成。坐标锚点保留原值，`utils/map-marker-layout.ts` 只计算避免重叠的国旗显示中心，并用引线连接实际锚点；布局在实时数值更新时复用。悬停提示和标记按可见属性 memo，置顶仍由 SVG 绘制顺序负责。
 
 桌面地图高度按既有断点固定为 18/20/24/28rem，列表超出后内部滚动；手机地图仍保持 2:1，列表固定 20rem，切换列表不撑高地图。根元素 `scrollbar-gutter: stable` 预留滚动条，reka-ui ConfigProvider 使用零额外补偿，防止打开弹窗时发生重复宽度补偿。滚动锁定、焦点和 Escape 仍由 reka-ui 提供。
+
+## 2026-11-08：自动 IP 属地
+
+后端在探针成功鉴权并提交有效指标后，以可信 Cloudflare 请求元数据自动保存城市、国家和经纬度，公共 REST/WS 返回同一 `location` DTO。主题 transport 不作 IP 查询；adapter 校验后存为 `CfsmServer.reportedLocation`，Glass adapter 处理位置优先级，`serverMapLocation` 为地图和筛选提供统一位置。旧后端缺字段时保留国家中心回退。没有城市时地图标题只显示一次国家名。
+
+地图已有坐标签名与旗帜布局复用保持不变，普通指标更新不重新计算几何。自动位置变化会进入正常坐标布局流程。

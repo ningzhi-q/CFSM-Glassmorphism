@@ -1,12 +1,12 @@
 import type { ProbeTarget, ProbeValue, ProviderTags, Reachability } from './cfsm'
 
-/** Explicit operator supplied coordinates; independent of reachability flags. */
+/** Validated coordinates from the backend or operator tags; independent of reachability flags. */
 export interface ServerLocation {
   latitude: number
   longitude: number
   countryCode: string
   city: string | null
-  source: 'legacy-ip' | 'operator'
+  source: 'legacy-ip' | 'operator' | 'cloudflare-ip'
 }
 
 export interface GlassResourceMetric {

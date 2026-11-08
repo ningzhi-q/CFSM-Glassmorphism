@@ -1747,13 +1747,13 @@ a {
   display: flex;
   min-width: 0;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow: hidden;
 }
 
 .node-chip {
-  overflow: hidden;
-  flex: none;
+  flex: 0 1 auto;
+  overflow-wrap: anywhere;
   max-width: 100%;
   padding: 2px 8px;
   border-radius: 999px;
@@ -1762,8 +1762,7 @@ a {
   background: color-mix(in oklab, oklch(0.554 0.046 257.417) 10%, transparent);
   font-size: 11px;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .node-metrics {

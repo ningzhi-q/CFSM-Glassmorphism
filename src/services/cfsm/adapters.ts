@@ -11,6 +11,7 @@ import type {
   LatestReportUpdate,
   ProbeValue,
   ProbeValues,
+  ReportedLocation,
   ServerCollection,
   ServerSystemConfig,
   SiteConfig,
@@ -21,6 +22,18 @@ import {
   LEGACY_PROBE_TARGETS,
   PROBE_TARGETS,
 } from '@/constants/probes'
+
+function reportedLocationValue(value: unknown): ReportedLocation | null {
+  if (!isRecord(value) || value.source !== 'cloudflare-ip') return null
+  const { latitude, longitude, country, city, observed_at: observedAt } = value
+  if (typeof latitude !== 'number' || !Number.isFinite(latitude) || Math.abs(latitude) > 90
+    || typeof longitude !== 'number' || !Number.isFinite(longitude) || Math.abs(longitude) > 180
+    || (latitude === 0 && longitude === 0)
+    || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country) || ['XX', 'T1'].includes(country)
+    || typeof observedAt !== 'number' || !Number.isSafeInteger(observedAt) || observedAt <= 0
+    || (city !== null && city !== undefined && (typeof city !== 'string' || city.length > 160 || [...city].some(character => character.charCodeAt(0) < 32)))) return null
+  return { latitude, longitude, countryCode: country, city: typeof city === 'string' ? city.trim() || null : null, source: 'cloudflare-ip', observedAt }
+}
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000
 
@@ -326,6 +339,7 @@ export function normalizeServer(
     operatingSystem: stringValue(input.os),
     kernelVersion: stringValue(input.kernel_version),
     region: stringValue(input.region),
+    reportedLocation: reportedLocationValue(input.location),
     ipV4Reachable: reachabilityValue(input.ip_v4),
     ipV6Reachable: reachabilityValue(input.ip_v6),
     bootTime: numberValue(input.boot_time),
@@ -481,6 +495,7 @@ export function mergeRealtimeSample(
   if ('os' in input) next.operatingSystem = normalized.operatingSystem
   if ('kernel_version' in input) next.kernelVersion = normalized.kernelVersion
   if ('region' in input) next.region = normalized.region
+  if ('location' in input) next.reportedLocation = normalized.reportedLocation
   if ('ip_v4' in input) next.ipV4Reachable = normalized.ipV4Reachable
   if ('ip_v6' in input) next.ipV6Reachable = normalized.ipV6Reachable
   if ('boot_time' in input) next.bootTime = normalized.bootTime

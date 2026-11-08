@@ -181,3 +181,9 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 ## 第八轮补充
 
 本轮地图与卡片复用只改变显示与控件生命周期，所有数据仍由原 transport/adapter/store 提供。主题内不查询 IP 属地服务、不读取管理 API。运营者在主题外更新已有 IP 的属地参考后，仍通过有效 `geo-*` 元数据进入已有 adapter；`ip_v4`/`ip_v6` 保持可达性标志。
+
+## 2026-11-08：ningzhi-q 后端自动属地扩展
+
+`ningzhi-q/CF-Server-Monitor` 的 `/api/servers`、`/api/server` 和 `/api/ws` 最新样本可附带 `location`：`{latitude:number, longitude:number, country:string, city:string|null, source:"cloudflare-ip", observed_at:number}`。坐标与时间必须为有效数字，时间为毫秒；这是探针上报出口 IP 的属地参考，不公开实际地址。标准后端没有此扩展时仍正常降级。
+
+`adapters.ts` 从 unknown 严格验证，转换为 `reportedLocation`；缺少字段的 WS partial sample 保留原位置。`toGlassServer` 按「明确运营者坐标 > 自动属地 > 旧站属地标签 > 国家中心」选择位置。主题没有新增网络请求或写接口，每个节点仍由其所属 API Base 提供 REST/WS 数据。

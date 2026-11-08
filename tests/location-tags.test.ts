@@ -80,3 +80,39 @@ describe('explicit operator location metadata', () => {
     expect(view.query).toBe('')
   })
 })
+
+describe('backend automatic IP location', () => {
+  const reported = { latitude: 35.68, longitude: 139.69, country: 'JP', city: 'Tokyo', source: 'cloudflare-ip', observed_at: 1794140000000 }
+  function raw(location: unknown = reported, tagged: string[] = []) {
+    return normalizeServer({ id: 'new-vps', region: 'JP', tags: tagged.join(','), location }, source)
+  }
+
+  it('uses validated automatic city coordinates without any migration tags', () => {
+    const node = toGlassServer(raw(), null)
+    expect(serverMapLocation(node)).toMatchObject({ code: 'JP', city: 'Tokyo', source: 'cloudflare-ip' })
+    expect(buildEarthPoints([node])[0]?.region).toBe('东京')
+    expect(node.tags).toEqual([])
+  })
+
+  it('prefers automatic data to legacy tags, while preserving an explicit operator location', () => {
+    expect(toGlassServer(raw(reported, tags), null).location?.source).toBe('cloudflare-ip')
+    expect(toGlassServer(raw(reported, tags.filter(tag => !tag.includes('source'))), null).location?.source).toBe('operator')
+  })
+
+  it('rejects malformed data and keeps the honest country-centre fallback', () => {
+    for (const invalid of [null, { ...reported, latitude: '35.68' }, { ...reported, longitude: 181 }, { ...reported, country: 'XX' }, { ...reported, observed_at: -1 }, { ...reported, city: false }]) {
+      expect(raw(invalid).reportedLocation).toBeNull()
+      expect(serverMapLocation(toGlassServer(raw(invalid), null))).toMatchObject({ code: 'JP', city: null, source: 'country' })
+    }
+  })
+
+  it('preserves automatic location during partial metric updates and accepts a changed location', async () => {
+    const { mergeRealtimeSample } = await import('@/services/cfsm/adapters')
+    const node = raw()
+    const partial = mergeRealtimeSample(node, { serverId: node.id, timestamp: reported.observed_at + 1000, data: { cpu: 15 } })
+    expect(partial.reportedLocation).toEqual(node.reportedLocation)
+    expect(partial.source).toEqual(source)
+    const moved = mergeRealtimeSample(partial, { serverId: node.id, timestamp: reported.observed_at + 2000, data: { location: { ...reported, city: 'Osaka', latitude: 34.69, longitude: 135.5 } } })
+    expect(toGlassServer(moved, null).location?.city).toBe('Osaka')
+  })
+})
