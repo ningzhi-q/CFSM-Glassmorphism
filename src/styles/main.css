@@ -6154,3 +6154,18 @@ a {
   .general-stage.general-stage--tiled { min-height: 0; }
   .general-stage.general-stage--tiled .general-stage__earth { min-height: 0; height: auto; }
 }
+
+/* Compact the requested grouping/tool row without reducing mobile hit areas. */
+.dashboard-controls { gap: 4px; margin-bottom: 12px; }
+.dashboard-controls__scroll-inner { gap: 4px; }
+.dashboard-controls__actions { gap: 4px; flex-shrink: 0; }
+@media (min-width: 769px) {
+  .group-tabs .app-tabs__list, .quick-controls { height: 30px; gap: 2px; padding: 2px; }
+  .group-tabs .app-tabs__trigger { padding: 3px 6px; font-size: 11px; }
+  .quick-controls button { gap: 3px; padding: 3px 6px; font-size: 11px; }
+  .quick-controls small { min-width: 15px; height: 15px; }
+  .tool-switch, .view-switch { height: 30px; padding: 2px; }
+  .tool-switch button, .view-switch button { width: 26px; height: 26px; }
+  .search-field { width: 30px; min-width: 30px; height: 30px; }
+  .search-field .app-icon { left: 8px; }
+}

@@ -28,7 +28,7 @@ const emit = defineEmits<{
   selectCountry: [code: string]
   selectServer: [server: GlassServer]
 }>()
-const legendMode = ref<'cities' | 'countries'>('cities')
+const legendMode = ref<'cities' | 'countries'>('countries')
 const hoveredClusterId = ref<string | null>(null)
 const selectedClusterId = ref<string | null>(null)
 const dialogOpen = ref(false)
@@ -241,11 +241,11 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
           <span v-if="totalServers > 0">在线率 {{ onlineRate }}%</span>
         </div>
         <div class="legend-modes" role="group" aria-label="地图列表显示方式">
-          <button type="button" :aria-pressed="legendMode === 'cities'" @click="legendMode = 'cities'">
-            城市 / 节点
-          </button>
           <button type="button" :aria-pressed="legendMode === 'countries'" @click="legendMode = 'countries'">
             国家 / 地区
+          </button>
+          <button type="button" :aria-pressed="legendMode === 'cities'" @click="legendMode = 'cities'">
+            城市 / 节点
           </button>
           <button v-if="props.selectedCountry" type="button" @click="emit('selectCountry', props.selectedCountry)">
             清除筛选
@@ -295,13 +295,14 @@ const clusterMarkers = computed<ClusterMarker[]>(() => regionClusters.value.map(
 
 <style scoped>
 
-.map-cluster-trigger { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; outline: none; }
+/* Tooltip renders a fragment: reach its actual HTML trigger through deep scope. */
+.marker-trigger-wrapper :deep(.map-cluster-trigger) { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; appearance: none; cursor: pointer; outline: none; }
 .marker-trigger-box { overflow: visible; }
 .marker-trigger-wrapper { width: 100%; height: 100%; }
 .marker-hit-area { fill: transparent; }
 .marker-visual-active .city-region { stroke: var(--emerald); stroke-width: 3; }
 .is-muted, .marker-visual-muted { opacity: 0.3; }
-.map-cluster-trigger:focus-visible { outline: 2px solid var(--emerald); border-radius: 4px; }
+.marker-trigger-wrapper :deep(.map-cluster-trigger:focus-visible) { outline: 2px solid var(--emerald); border-radius: 4px; }
 .legend-modes { display: flex; grid-column: 1 / -1; flex-wrap: wrap; gap: 0.25rem; }
 .legend-modes button { border: 1px solid var(--glass-border); border-radius: 999px; background: var(--control-surface); color: var(--glass-text); padding: 0.25rem 0.45rem; font: inherit; font-size: 0.65rem; cursor: pointer; }
 .legend-modes button[aria-pressed='true'] { color: var(--emerald); border-color: var(--emerald); }
