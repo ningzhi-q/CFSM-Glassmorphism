@@ -12,13 +12,15 @@ export function orderedGroups(groups: readonly string[], order: string): string[
 }
 
 export function moveGroup(groups: readonly string[], name: string, direction: -1 | 1): string[] {
+  return moveGroupTo(groups, name, groups.indexOf(name) + direction)
+}
+
+/** 拖到最终位置；无效目标不改变顺序，调用方的数组保持不变。 */
+export function moveGroupTo(groups: readonly string[], name: string, target: number): string[] {
   const result = [...groups]
   const index = result.indexOf(name)
-  const target = index + direction
-  if (index < 0 || target < 0 || target >= result.length) return result
-  const adjacent = result[target]
-  if (adjacent === undefined) return result
-  result[index] = adjacent
-  result[target] = name
+  if (index < 0 || !Number.isInteger(target) || target < 0 || target >= result.length) return result
+  result.splice(index, 1)
+  result.splice(target, 0, name)
   return result
 }

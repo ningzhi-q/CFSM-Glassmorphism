@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { moveGroup, orderedGroups, parseGroupOrder } from '@/domain/group-order'
+import { moveGroup, moveGroupTo, orderedGroups, parseGroupOrder } from '@/domain/group-order'
 import { useThemeSettingsStore } from '@/stores/theme-settings'
 import { resolveThemeSettings, THEME_SETTINGS_STORAGE_KEY } from '@/theme/settings'
 import { STORAGE_KEYS } from '@/services/cfsm/config'
@@ -53,6 +53,24 @@ describe('分组自定义顺序', () => {
     expect(second.runtime.groupOrder).toBe('')
     expect(storage.getItem(THEME_SETTINGS_STORAGE_KEY)).toContain('groupOrder')
     expect(resolveThemeSettings({ groupOrder: 'A\nA' }, { groupOrder: 123 }).groupOrder).toBe('A')
+  })
+
+  it('拖拽跨多个位置保持其它分组相对顺序，支持首尾互换', () => {
+    const groups = ['A', 'B', 'C', 'D', 'E']
+    expect(moveGroupTo(groups, 'B', 4)).toEqual(['A', 'C', 'D', 'E', 'B'])
+    expect(moveGroupTo(groups, 'E', 0)).toEqual(['E', 'A', 'B', 'C', 'D'])
+    expect(moveGroupTo(groups, 'A', 3)).toEqual(['B', 'C', 'D', 'A', 'E'])
+    expect(groups).toEqual(['A', 'B', 'C', 'D', 'E'])
+  })
+
+  it('取消和无效拖动目标不改变顺序，不丢失名称特殊的分组', () => {
+    const groups = ['Foo Bar', 'A,B', '__proto__', '独角鲸']
+    for (const target of [-1, 4, 1.5, NaN, Infinity]) {
+      expect(moveGroupTo(groups, 'A,B', target)).toEqual(groups)
+    }
+    expect(moveGroupTo(groups, '不存在', 2)).toEqual(groups)
+    expect(moveGroupTo(groups, 'A,B', 1)).toEqual(groups)
+    expect(moveGroupTo(groups, '__proto__', 0)).toEqual(['__proto__', 'Foo Bar', 'A,B', '独角鲸'])
   })
 
   it('设为站点默认只改变顺序，保留最新后端配置和其它本地偏好', async () => {

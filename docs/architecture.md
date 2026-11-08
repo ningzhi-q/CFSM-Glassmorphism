@@ -364,7 +364,7 @@ probe 三态、多 API Base、主题设置、Earth 三 renderer 与点击路径�
 
 ## 用户增强：分组排序
 
-`domain/group-order.ts` 负责完整名称解析、去重、已指定分组优先和边界移动。`DashboardControls` 对已有分组应用统一 runtime 的 `groupOrder`，全部节点作为独立首项。`GroupOrderDialog` 只负责编辑与调用 store，不发起独立请求。设置 schema 新增一个字符串字段，共 49 项。首页的 `saveGroupOrderBackend` 读取最新后端快照后提交单字段变更的完整对象，并仅清除排序本地覆盖；与其它保存共享保存状态，失败不改现有层。当前选中的分组仍由独立视图 store 缓存，不受标签排列影响。
+`domain/group-order.ts` 负责完整名称解析、去重、已指定分组优先、边界移动与跨位置插入。`DashboardControls` 对已有分组应用统一 runtime 的 `groupOrder`，全部节点作为独立首项。`GroupOrderDialog` 只负责编辑与调用 store，不发起独立请求。SortableJS 负责手柄鼠标/触摸拖动和列表自动滚动；放下时先还原其临时 DOM 移动，再由 Vue 更新顺序。Escape、系统取消事件、关闭、失焦、后台隐藏与卸载都会取消拖动并清理；保存期间禁用拖动。拖动和箭头均保留当前不存在的已配置分组，不新增设置字段。设置 schema 新增一个字符串字段，共 49 项。首页的 `saveGroupOrderBackend` 读取最新后端快照后提交单字段变更的完整对象，并仅清除排序本地覆盖；与其它保存共享保存状态，失败不改现有层。当前选中的分组仍由独立视图 store 缓存，不受标签排列影响。
 
 ## 快速滚动绘制修复
 

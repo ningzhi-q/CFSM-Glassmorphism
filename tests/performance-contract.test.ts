@@ -51,6 +51,7 @@ describe('release performance contracts', () => {
     // 与 reka-ui + vue-sonner（UI 基元与提示）。这里锁定完整集合，防止之后无意引入
     // 其它运行时依赖，也防止有人为了缩小包体退回自写仿制版本。
     // OpenCC 是本轮用户要求简体中文地名所需的字形转换，不替换上游 renderer。
+    // SortableJS 为用户要求的分组拖拽提供鼠标/触摸与列表边缘自动滚动。
     expect(Object.keys(packageJson.dependencies ?? {}).sort()).toEqual([
       '@vueuse/core',
       'cobe',
@@ -59,6 +60,7 @@ describe('release performance contracts', () => {
       'opencc-js',
       'pinia',
       'reka-ui',
+      'sortablejs',
       'three',
       'vue',
       'vue-echarts',
