@@ -41,6 +41,7 @@ import {
   formatPercent,
   formatPrice,
   MISSING_TEXT,
+  isPermanentExpiration,
   parseCfsmDate,
   type SplitAmount,
 } from '@/utils/format'
@@ -248,6 +249,7 @@ export function isHighLoad(server: GlassServer, threshold: number): boolean {
 }
 
 export function daysUntilExpiry(value: string | null, now = Date.now()): number | null {
+  if (isPermanentExpiration(value)) return null
   const date = parseCfsmDate(value)
   if (!date) return null
   const difference = date.getTime() - now
@@ -938,11 +940,11 @@ export function buildDetailCards(
     nodePrice: priceText === null ? null : (() => { const s = splitMetricValue(priceText); return card('nodePrice', 'tabler:cash', '节点价格', s.value, s.unit) })(),
     monthlyCost: monthly === null ? null : (() => { const s = splitMetricValue(monthly); return card('monthlyCost', 'tabler:receipt-2', '月均支出', s.value, s.unit) })(),
     remainingTime: server.expireDate === null ? null : (() => {
-      const s = splitMetricValue(formatDetailExpireText(days))
-      const status = detailExpireStatus(days)
+      const s = splitMetricValue(formatDetailExpireText(days, server.expireDate))
+      const status = detailExpireStatus(days, server.expireDate)
       const tone = status === 'expired' || status === 'critical' ? 'danger'
         : status === 'warning' ? 'warning'
-          : status === 'long_term' || status === 'unknown' ? 'muted' : 'ok'
+          : status === 'permanent' || status === 'long_term' || status === 'unknown' ? 'muted' : 'ok'
       return { ...card('remainingTime', 'tabler:calendar-dollar', '剩余时间', s.value, s.unit), tone }
     })(),
     remainingValue: remaining === null ? null : card('remainingValue', 'tabler:coins', '剩余价值', remaining.value, remaining.unit, remaining.hint),

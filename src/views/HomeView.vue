@@ -229,16 +229,6 @@ const hasNoMatches = computed(() => (
   glassServers.value.length > 0 && visibleServers.value.length === 0
 ))
 const allOffline = computed(() => summary.value.total > 0 && summary.value.online === 0)
-// 页脚与上游一样用英文；状态只说访客能理解的结果，不出现 REST / WebSocket 这类实现细节。
-const realtimeLabel = computed(() => {
-  if (realtime.status === 'live') return 'Live updates'
-  if (realtime.status === 'fallback') return 'Polling updates'
-  if (realtime.status === 'timed-out') return 'Live updates timed out'
-  if (realtime.status === 'paused') return 'Live updates paused'
-  if (realtime.status === 'connecting') return 'Connecting live updates'
-  return 'Snapshot'
-})
-
 /** 数据源失败的简短中文原因；不把 CFSM 返回的英文错误码直接显示给访客。 */
 function failureReason(failure: ServerSourceFailure): string {
   return issueReason(issueFromFailure(failure))
@@ -661,15 +651,6 @@ onUnmounted(() => realtime.stop())
         :initial-metric="probeMetric"
         @detail="probeDialogOpen = false; openServer(probeServer)"
       />
-      <footer v-if="!coldStartCover" class="app-footer">
-        <span>
-          Powered by
-          <a href="https://github.com/huilang-me/CF-Server-Monitor/">
-            CF-Server-Monitor<template v-if="app.config?.version"> v{{ app.config.version }}</template>
-          </a>
-        </span>
-        <span>Glassmorphism Theme · {{ realtimeLabel }}</span>
-      </footer>
     </div>
   </div>
 </template>

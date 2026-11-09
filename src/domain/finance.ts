@@ -1,10 +1,10 @@
-import { parseCfsmDate } from '@/utils/format'
+import { isPermanentExpiration, parseCfsmDate } from '@/utils/format'
 
 /*
  * 财务的共享口径：价格、币种、计费周期、到期、剩余价值、月均与换算。
  *
  * 首页总览、详情与明细弹窗都从这里取数，不各自复制一套金额算法。语义以
- * CFSM 2.8.5 Stable（`1dc0dc4`）为准，逐项依据见 `docs/finance-parity.md`。
+ * CFSM 2.8.5 Stable（`1dc0dc4`）为基准，补充 ningzhi-q 的一次性与永久契约；逐项依据见 `docs/finance-parity.md`。
  * 与 CFSM / Komari 的有意差异只有几处，全部是为了不把「不知道」算成一个数：
  *
  * - 无法识别的币种（空串、`kr` 这类有歧义的符号、未知文本）不当人民币，标为不可换算；
@@ -197,7 +197,7 @@ export function parseBillingPrice(raw: string | null): BillingPrice {
 
 export type BillingCycle =
   | 'month' | 'quarter' | 'half_year' | 'year'
-  | 'two_years' | 'three_years' | 'four_years' | 'five_years'
+  | 'two_years' | 'three_years' | 'four_years' | 'five_years' | 'one_time'
 
 /** CFSM `BILLING_CYCLE_DAYS`，与本主题此前已验收的天数表相同。 */
 export const BILLING_CYCLE_DAYS: Readonly<Record<BillingCycle, number>> = {
@@ -209,6 +209,7 @@ export const BILLING_CYCLE_DAYS: Readonly<Record<BillingCycle, number>> = {
   three_years: 1095,
   four_years: 1460,
   five_years: 1825,
+  one_time: 0,
 }
 
 function isBillingCycle(value: string): value is BillingCycle {
@@ -216,7 +217,7 @@ function isBillingCycle(value: string): value is BillingCycle {
 }
 
 /**
- * 只认 CFSM 的 8 个枚举。CFSM 前端会把未知值当作「月」，但后端保存时总会写入
+ * 只认 CFSM 的 9 个枚举。CFSM 前端会把未知值当作「月」，但后端保存时总会写入
  * 枚举之一，未知值只可能来自手工改库；这里不猜，交给调用方显示「不适用」。
  */
 export function parseBillingCycle(raw: string | null): BillingCycle | null {
@@ -227,10 +228,12 @@ export function parseBillingCycle(raw: string | null): BillingCycle | null {
 export type BillingExpiry =
   | { readonly status: 'missing' }
   | { readonly status: 'invalid' }
+  | { readonly status: 'permanent' }
   | { readonly status: 'date', readonly at: number }
 
 export function parseBillingExpiry(raw: string | null): BillingExpiry {
   if (!raw?.trim()) return { status: 'missing' }
+  if (isPermanentExpiration(raw)) return { status: 'permanent' }
   const date = parseCfsmDate(raw)
   return date ? { status: 'date', at: date.getTime() } : { status: 'invalid' }
 }
@@ -272,6 +275,7 @@ export function monthlyCost(input: BillingInput): OriginalAmount {
   if (price.status !== 'paid') return { status: 'unavailable', reason: 'price-invalid' }
   const cycle = parseBillingCycle(input.billingCycle)
   if (!cycle) return { status: 'unavailable', reason: 'cycle-unknown' }
+  if (cycle === 'one_time') return { status: 'ok', amount: 0 }
   return { status: 'ok', amount: price.amount / BILLING_CYCLE_DAYS[cycle] * MONTH_DAYS }
 }
 
@@ -289,12 +293,14 @@ export function remainingValueOf(input: BillingInput, now: number): OriginalAmou
   const expiry = parseBillingExpiry(input.expireDate)
   if (expiry.status === 'missing') return { status: 'unavailable', reason: 'expiry-missing' }
   if (expiry.status === 'invalid') return { status: 'unavailable', reason: 'expiry-invalid' }
+  if (expiry.status === 'permanent') return { status: 'ok', amount: price.amount }
   const difference = expiry.at - now
   if (difference <= 0) return { status: 'ok', amount: 0 }
   if (difference / (DAY_MS * 365) > LONG_TERM_YEARS) return { status: 'ok', amount: price.amount }
 
   const cycle = parseBillingCycle(input.billingCycle)
   if (!cycle) return { status: 'unavailable', reason: 'cycle-unknown' }
+  if (cycle === 'one_time') return { status: 'ok', amount: price.amount }
   return {
     status: 'ok',
     amount: Math.min(price.amount, price.amount * difference / (BILLING_CYCLE_DAYS[cycle] * DAY_MS)),

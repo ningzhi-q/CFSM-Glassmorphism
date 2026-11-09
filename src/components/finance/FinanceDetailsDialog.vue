@@ -21,7 +21,7 @@ import {
   type RowAmount,
 } from '@/domain/finance'
 import { useFinanceStore } from '@/stores/finance'
-import { detailExpireStatus, formatDisplayPrice, MISSING_TEXT } from '@/utils/format'
+import { detailExpireStatus, formatDisplayPrice, MISSING_TEXT, PERMANENT_EXPIRY_TEXT } from '@/utils/format'
 
 /**
  * 对齐 Komari `FinanceDetailsDialog`：顶部汇总、固定账单明细与汇率设置。
@@ -101,6 +101,7 @@ function priceTitle(row: FinanceRow): string | undefined {
 
 /** 对应上游 `expiryLabel`：未设置 / 已过期 / 长期 / N 天；日期写错时单独说明，不当作未设置。 */
 function expiryText(row: FinanceRow): string {
+  if (row.expiry.status === 'permanent') return PERMANENT_EXPIRY_TEXT
   if (row.expiry.status === 'missing') return '未设置'
   if (row.expiry.status === 'invalid') return '日期无效'
   const days = daysUntilExpiry(row.node.expireDate, now.value)

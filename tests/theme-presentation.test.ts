@@ -42,6 +42,19 @@ function glass(overrides: Partial<GlassServer> = {}): GlassServer {
 }
 
 describe('round 7 theme presentation contracts', () => {
+  it('永久条目不产生虚构天数或到期告警，详情显示永久及真实财务值', () => {
+    expect(daysUntilExpiry('never')).toBeNull()
+    expect(isExpiring(glass({ expireDate: 'never' }), 30)).toBe(false)
+    const server = normalizeServer({ id: 'node', price: '99', currency: '¥', billing_cycle: 'one_time', expire_date: 'never' }, source)
+    const settings = cloneThemeSettings(DEFAULT_THEME_SETTINGS)
+    settings.detailMetricCardPreset = '自定义'
+    settings.detailMetricCardKeys = 'remainingTime\nmonthlyCost\nremainingValue\nnodePrice'
+    const cards = buildDetailCards(server, settings)
+    expect(cards.find((card) => card.key === 'remainingTime')).toMatchObject({ value: '∞ 永久', tone: 'muted' })
+    expect(cards.find((card) => card.key === 'monthlyCost')).toMatchObject({ value: '¥0.00', unit: '/ 月' })
+    expect(cards.find((card) => card.key === 'remainingValue')).toMatchObject({ value: '¥99.00' })
+    expect(cards.find((card) => card.key === 'nodePrice')).toMatchObject({ value: '¥99', unit: '/ 一次性' })
+  })
   it('resolves presets and custom keys in configured order while dropping unsupported keys', () => {
     const settings = cloneThemeSettings(DEFAULT_THEME_SETTINGS)
     settings.generalCardPreset = '自定义'
