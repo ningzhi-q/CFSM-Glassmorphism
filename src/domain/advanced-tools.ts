@@ -105,13 +105,14 @@ export function serverMapLocation(server: GlassServer): {
   longitude: number
   city: string | null
   source: 'country' | 'legacy-ip' | 'operator' | 'cloudflare-ip'
-  citySource?: 'db-ip'
+  citySource?: 'db-ip' | 'ipapi-is'
   subdivision?: string
+  subdivisionSource?: 'db-ip' | 'ipapi-is'
 } | null {
   const region = resolveRegionCoordinates(server.region)
   const geo = server.location
   if (geo && !(geo.source === 'legacy-ip' && region && geo.countryCode !== region.code)) {
-    return { code: geo.countryCode, latitude: geo.latitude, longitude: geo.longitude, city: geo.city, source: geo.source, ...(geo.citySource ? { citySource: geo.citySource } : {}), ...(geo.subdivision ? { subdivision: geo.subdivision } : {}) }
+    return { code: geo.countryCode, latitude: geo.latitude, longitude: geo.longitude, city: geo.city, source: geo.source, ...(geo.citySource ? { citySource: geo.citySource } : {}), ...(geo.subdivision ? { subdivision: geo.subdivision } : {}), ...(geo.subdivisionSource ? { subdivisionSource: geo.subdivisionSource } : {}) }
   }
   return region ? { ...region, city: null, source: 'country' } : null
 }

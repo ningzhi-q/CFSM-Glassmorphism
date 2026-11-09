@@ -425,3 +425,8 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 ## 2026-11-10：属地文字去重
 
 领域函数 `locationTitle` 合并已翻译的同名属地与国家；`serverCityText`、平面地图聚类标题、城市列表及提示共用这一规则。弹窗成员行删除属地项，保留在线状态、节点名、分组和详情入口。补充 Tampines 的简体译名「淡滨尼」，消费后端 subdivision；没有组件请求或位置推断。
+
+
+## 2026-11-10：备用定位来源传递
+
+适配层验证 DB-IP / IPapi.is 来源，领域位置和地图快照保留 citySource、subdivisionSource。快照指纹包含地区来源，提供者变化会同步提示和署名。平面地图逐来源解释城市或地区参考，并只显示对应提供者链接；中文译名补充 Wan Chai（湾仔）。原始城市和 Cloudflare 坐标不变。

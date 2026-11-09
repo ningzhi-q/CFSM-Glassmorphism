@@ -79,8 +79,9 @@ export interface ReportedLocation {
   countryCode: string
   city: string | null
   source: 'cloudflare-ip'
-  citySource?: 'db-ip'
+  citySource?: 'db-ip' | 'ipapi-is'
   subdivision?: string
+  subdivisionSource?: 'db-ip' | 'ipapi-is'
   observedAt: number
 }
 

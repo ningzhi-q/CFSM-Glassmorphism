@@ -14,6 +14,7 @@ const CITY_NAME_ZH_MAP: Record<string, string> = {
   'kwai chung': '葵涌',
   'cheung sha wan': '长沙湾',
   'kwun tong': '观塘',
+  'wan chai': '湾仔',
   'mong kok': '旺角',
   'newark': '纽瓦克',
   'jinan': '济南',
