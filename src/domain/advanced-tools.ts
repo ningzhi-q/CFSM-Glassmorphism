@@ -71,7 +71,7 @@ export function buildEarthPoints(servers: readonly GlassServer[]): EarthPoint[] 
   for (const server of servers) {
     const location = serverMapLocation(server)
     if (!location) continue
-    const city = location.city
+    const city = location.subdivision || location.city
     const id = location.source !== 'country'
       ? `${location.code.toLowerCase()}-${city || `${location.latitude.toFixed(2)},${location.longitude.toFixed(2)}`}`
       : location.code.toLowerCase()
@@ -105,11 +105,13 @@ export function serverMapLocation(server: GlassServer): {
   longitude: number
   city: string | null
   source: 'country' | 'legacy-ip' | 'operator' | 'cloudflare-ip'
+  citySource?: 'db-ip'
+  subdivision?: string
 } | null {
   const region = resolveRegionCoordinates(server.region)
   const geo = server.location
   if (geo && !(geo.source === 'legacy-ip' && region && geo.countryCode !== region.code)) {
-    return { code: geo.countryCode, latitude: geo.latitude, longitude: geo.longitude, city: geo.city, source: geo.source }
+    return { code: geo.countryCode, latitude: geo.latitude, longitude: geo.longitude, city: geo.city, source: geo.source, ...(geo.citySource ? { citySource: geo.citySource } : {}), ...(geo.subdivision ? { subdivision: geo.subdivision } : {}) }
   }
   return region ? { ...region, city: null, source: 'country' } : null
 }
@@ -117,9 +119,12 @@ export function serverMapLocation(server: GlassServer): {
 /** 只标注已提供的城市；国家中心坐标不能被当作城市或区县。 */
 export function serverCityText(server: GlassServer): string {
   const location = serverMapLocation(server)
-  if (!location?.city) return '城市：未提供'
-  const city = formatCityNameZh(location.city, location.code, location)
-  return city ? `城市：${city}` : '城市：译名待补充'
+  if (!location) return '城市：未提供'
+  const country = countryName(location.code)
+  const locality = location.subdivision || location.city
+  if (!locality) return `城市未提供 · ${country}`
+  const city = formatCityNameZh(locality, location.code, location)
+  return `${city || '城市译名待补充'} · ${country}`
 }
 
 export type HealthTone = 'healthy' | 'warning' | 'critical' | 'unknown'

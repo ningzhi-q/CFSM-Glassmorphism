@@ -7,6 +7,10 @@ export interface ServerLocation {
   countryCode: string
   city: string | null
   source: 'legacy-ip' | 'operator' | 'cloudflare-ip'
+  /** City refinement only; coordinates remain the Cloudflare IP reference. */
+  citySource?: 'db-ip'
+  /** Provider-supplied administrative area, kept distinct from the city. */
+  subdivision?: string
 }
 
 export interface GlassResourceMetric {

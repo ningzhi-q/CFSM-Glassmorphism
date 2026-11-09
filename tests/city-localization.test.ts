@@ -26,11 +26,36 @@ describe('simplified Chinese city presentation', () => {
     const hongKong = toGlassServer(normalizeServer({ id: 'hk', region: 'HK', location: {
       latitude: 22.27832, longitude: 114.17469, country: 'HK', city: 'Hong Kong', source: 'cloudflare-ip', observed_at: 1794225464599,
     } }, source), null)
-    expect(serverCityText(hongKong)).toBe('城市：香港')
-    expect(serverCityText({ ...hongKong, location: undefined })).toBe('城市：未提供')
-    expect(serverCityText(node('Iola'))).toBe('城市：艾奥拉')
-    expect(serverCityText(node('Unlisted Test City'))).toBe('城市：译名待补充')
+    expect(serverCityText(hongKong)).toBe('香港 · 香港')
+    expect(serverCityText({ ...hongKong, location: undefined })).toBe('城市未提供 · 香港')
+    expect(serverCityText(node('Iola'))).toBe('艾奥拉 · 美国')
+    expect(serverCityText(node('Unlisted Test City'))).toBe('城市译名待补充 · 美国')
     expect(hongKong.location?.city).toBe('Hong Kong')
+  })
+  it.each([
+    ['Kwai Chung', 'HK', '葵涌 · 香港'],
+    ['Chuncheon', 'KR', '春川 · 韩国'],
+    ['Los Angeles', 'US', '洛杉矶 · 美国'],
+    ['Kwun Tong', 'HK', '观塘 · 香港'],
+  ])('展示实际提供的 %s 城市和国家', (city, countryCode, expected) => {
+    const server = node(city)
+    if (!server.location) throw new Error('Expected validated location')
+    expect(serverCityText({ ...server, location: { ...server.location, countryCode, city } })).toBe(expected)
+  })
+  it('单独保留行政地区参考和来源，不改原始城市或坐标', () => {
+    const wire = { latitude: 22.27832, longitude: 114.17469, country: 'HK', city: 'Hong Kong', source: 'cloudflare-ip', observed_at: 1794225464599 }
+    const server = toGlassServer(normalizeServer({ id: 'district', region: 'HK', location: { ...wire, subdivision: 'Kowloon', subdivision_source: 'db-ip' } }, apiSource('https://monitor.example')), null)
+    expect(server.location).toMatchObject({ city: 'Hong Kong', subdivision: 'Kowloon', source: 'cloudflare-ip', latitude: wire.latitude, longitude: wire.longitude })
+    expect(serverCityText(server)).toBe('九龙 · 香港')
+    expect(buildEarthPoints([server])[0]).toMatchObject({ city: 'Kowloon', region: '九龙', latitude: wire.latitude, longitude: wire.longitude })
+    for (const subdivision of ['', 'a'.repeat(161), 'bad\nplace', ['Kowloon']]) {
+      const invalid = normalizeServer({ id: 'bad-district', location: { ...wire, subdivision, subdivision_source: 'db-ip' } }, apiSource('https://monitor.example'))
+      expect(invalid.reportedLocation?.subdivision).toBeUndefined()
+      expect(invalid.reportedLocation?.city).toBe('Hong Kong')
+    }
+    const unknown = normalizeServer({ id: 'unknown-source', location: { ...wire, subdivision: 'Kowloon', subdivision_source: 'unknown', city_source: 'unknown' } }, apiSource('https://monitor.example'))
+    expect(unknown.reportedLocation?.subdivision).toBeUndefined()
+    expect(unknown.reportedLocation?.citySource).toBeUndefined()
   })
   it.each([
     ['Iola', 'US', '艾奥拉'], ['Sultanbeyli', 'TR', '苏丹贝伊利'], ['Tung Chung', 'HK', '东涌'],

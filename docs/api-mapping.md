@@ -201,3 +201,7 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 公开服务器字段原样适配：`billing_cycle: "one_time"`、`expire_date: "never"`。仅格式与财务层识别这两个值；空日期仍是未设置，非法日期仍不可用。主题不执行管理端计费联动，不写节点信息；无新端点，仍保留每台服务器的 API Base 归属。
 
 本日补充：一次性或永久的剩余价值在财务域内标为不适用，不展示、不计入该合计。该状态不是 wire 字段，不写回节点。地图弹窗的城市文本仅消费已验证的公开 `location.city` 及现有位置优先级；Cloudflare 返回 `Hong Kong` 时明确标注「城市：香港」，不生成区县，也不新增请求。
+
+## 2026-11-09：属地细分扩展
+
+`location` 可选扩展为 `city_source:"db-ip"` 或 `subdivision:string` + `subdivision_source:"db-ip"`。adapter 校验来源、字符串长度及控制字符；无效扩展忽略，仍保留原城市和坐标。`source:"cloudflare-ip"` 始终表示坐标来源，不能因为城市补充而改成 DB-IP 坐标。仅返回地区时，原始 `city` 保留，地区单独保存。REST/WS 使用同一边界；旧后端没有扩展字段也兼容。主题不查询 IP 服务、不新增接口或管理写入。成员文字统一为「城市或地区 · 国家」，国家中心明确提示「城市未提供 · 国家」。

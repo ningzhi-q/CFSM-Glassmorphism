@@ -100,7 +100,7 @@ watch(regionClusters, () => {
 })
 function clusterTitle(cluster: RegionCluster): string {
   const country = countryName(cluster.code)
-  return cluster.label === country ? country : `${cluster.label} · ${country}`
+  return cluster.city ? `${cluster.label} · ${country}` : country
 }
 function clusterLocationDescription(cluster: RegionCluster): string {
   const sources = new Set(cluster.members.map(server => serverMapLocation(server)?.source))
@@ -109,6 +109,8 @@ function clusterLocationDescription(cluster: RegionCluster): string {
   if (sources.has('legacy-ip')) descriptions.push('旧站 IP 属地参考，不代表实时或物理位置')
   if (sources.has('operator')) descriptions.push('运营者提供的位置')
   if (sources.has('country')) descriptions.push('国家/地区中心参考位置')
+  if (cluster.members.some(server => server.location?.citySource === 'db-ip')) descriptions.push('城市名称由 DB-IP 补充，坐标仍为 Cloudflare IP 属地参考')
+  if (cluster.members.some(server => server.location?.subdivision)) descriptions.push('地区名称由 DB-IP 补充，不代表已精确到城市或机房；坐标仍为 Cloudflare IP 属地参考')
   return descriptions.join('；')
 }
 function clusterTooltip(cluster: RegionCluster): string {
@@ -121,8 +123,10 @@ function openCluster(cluster: RegionCluster): void {
 }
 function openMember(server: GlassServer): void {
   dialogOpen.value = false
-  emit('selectServer', server)
+  const live = props.servers.find(node => node.key === server.key)
+  if (live) emit('selectServer', live)
 }
+const legendTooltips = computed(() => new Map(legendClusters.value.map(cluster => [cluster.id, clusterTooltip(cluster)])))
 const legendDensityClass = computed(() => {
   const count = legendClusters.value.length
   if (count > 36) return 'legend-ultra-dense'
@@ -317,29 +321,32 @@ const visualClusterMarkers = computed(() => {
             清除筛选
           </button>
         </div>
-        <button
-          v-for="(cluster, index) in legendClusters" :key="cluster.id" type="button"
-          class="legend-item" :class="{
-            'is-online': cluster.onlineServers > 0, 'is-offline': cluster.onlineServers === 0,
-            'is-active': hoveredClusterId === cluster.id || props.selectedCountry === cluster.code,
-            'is-muted': props.selectedCountry && cluster.code !== props.selectedCountry,
-          }"
-          :aria-label="legendMode === 'countries' ? `筛选${cluster.label}，${cluster.servers}台节点` : `查看${cluster.label}，${cluster.servers}台节点`"
-          :aria-pressed="legendMode === 'countries' ? props.selectedCountry === cluster.code : undefined"
-          :title="clusterTooltip(cluster)"
-          @mouseenter="hoveredClusterId = cluster.id"
-          @mouseleave="hoveredClusterId = null"
-          @focus="hoveredClusterId = cluster.id"
-          @blur="hoveredClusterId = null"
-          @click="legendMode === 'countries' ? emit('selectCountry', cluster.code) : openCluster(cluster)"
-        >
-          <span class="legend-index">{{ index + 1 }}</span>
-          <img :src="flagUrl(cluster.code)" :alt="countryName(cluster.code)" class="legend-flag" @error="hideMissingFlag">
-          <span class="legend-copy">
-            <span class="legend-name">{{ cluster.label }}</span>
-            <span class="legend-meta">{{ cluster.onlineServers }}/{{ cluster.servers }} 在线 · {{ legendMode === 'cities' && !cluster.city ? '国家参考位置' : countryName(cluster.code) }}</span>
-          </span>
-        </button>
+        <div class="legend-list" role="group" aria-label="节点位置列表">
+          <button
+            v-for="(cluster, index) in legendClusters" :key="cluster.id" v-memo="[cluster, index, legendMode, hoveredClusterId === cluster.id, props.selectedCountry]"
+            type="button"
+            class="legend-item" :class="{
+              'is-online': cluster.onlineServers > 0, 'is-offline': cluster.onlineServers === 0,
+              'is-active': hoveredClusterId === cluster.id || props.selectedCountry === cluster.code,
+              'is-muted': props.selectedCountry && cluster.code !== props.selectedCountry,
+            }"
+            :aria-label="legendMode === 'countries' ? `筛选${cluster.label}，${cluster.servers}台节点` : `查看${cluster.label}，${cluster.servers}台节点`"
+            :aria-pressed="legendMode === 'countries' ? props.selectedCountry === cluster.code : undefined"
+            :title="legendTooltips.get(cluster.id)"
+            @mouseenter="hoveredClusterId = cluster.id"
+            @mouseleave="hoveredClusterId = null"
+            @focus="hoveredClusterId = cluster.id"
+            @blur="hoveredClusterId = null"
+            @click="legendMode === 'countries' ? emit('selectCountry', cluster.code) : openCluster(cluster)"
+          >
+            <span class="legend-index">{{ index + 1 }}</span>
+            <img :src="flagUrl(cluster.code)" :alt="countryName(cluster.code)" class="legend-flag" @error="hideMissingFlag">
+            <span class="legend-copy">
+              <span class="legend-name">{{ legendMode === 'cities' ? clusterTitle(cluster) : cluster.label }}</span>
+              <span class="legend-meta">{{ cluster.onlineServers }}/{{ cluster.servers }} 在线 · {{ legendMode === 'cities' && !cluster.city ? '国家参考位置' : countryName(cluster.code) }}</span>
+            </span>
+          </button>
+        </div>
       </div>
     </div>
     <AppDialog
@@ -356,6 +363,7 @@ const visualClusterMarkers = computed(() => {
           <span>查看详情 →</span>
         </button>
       </div>
+      <a v-if="selectedCluster?.members.some(server => server.location?.citySource === 'db-ip' || server.location?.subdivision)" href="https://db-ip.com" target="_blank" rel="noopener noreferrer">属地数据：DB-IP</a>
     </AppDialog>
   </div>
 </template>
@@ -580,13 +588,23 @@ const visualClusterMarkers = computed(() => {
   min-width: 0;
   min-height: 0;
   max-height: 100%;
-  align-content: start;
-  grid-template-columns: var(--legend-grid-columns);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: var(--legend-gap);
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0.7rem 0.75rem;
   background: rgb(255 255 255 / 8%);
   pointer-events: auto;
+}
+
+.legend-list {
+  display: grid;
+  grid-template-columns: var(--legend-grid-columns);
+  align-content: start;
+  gap: var(--legend-gap);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  backdrop-filter: blur(12px) saturate(150%);
 }
 
 .legend-title {
@@ -664,7 +682,6 @@ const visualClusterMarkers = computed(() => {
   background: rgb(255 255 255 / 44%);
   box-shadow: 0 8px 18px rgb(15 23 42 / 12%);
   padding: var(--legend-item-padding);
-  backdrop-filter: blur(12px) saturate(150%);
 }
 
 .legend-index {
