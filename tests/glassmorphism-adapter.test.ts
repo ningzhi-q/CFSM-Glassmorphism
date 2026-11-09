@@ -214,4 +214,33 @@ describe('Server to Glassmorphism adapter', () => {
     expect(updated[31]).not.toBe(initial[31])
     expect(updated[31]?.cpu).toBe(99)
   })
+  it('preserves probe inputs across metric updates but refreshes real probe changes and owning labels', () => {
+    const config = normalizeSiteConfig({ custom_ct_name: '主站电信' })
+    const server = normalizeServer({ id: 'probe-cache', cpu: 10, ping_ct: 20, loss_ct: 0,
+      ping: [{ ts: 1_700_000_000_000, ct: 18, cu: null, cm: false }],
+      loss: [{ ts: 1_700_000_000_000, ct: 0, cu: null, cm: false }],
+    }, source)
+    const mapper = createGlassServerMapper()
+    const first = mapper.map([server], config)[0]!
+    const unchanged = mergeRealtimeSample(server, { serverId: server.id, timestamp: 2, data: { cpu: 80, ping_ct: 20, loss_ct: 0 } }, 2)
+    const second = mapper.map([unchanged], config)[0]!
+    expect(second.cpu).toBe(80)
+    expect(second.latency).toBe(first.latency)
+    expect(second.history.latencySeries).toBe(first.history.latencySeries)
+    expect(second.history.packetLossSeries).toBe(first.history.packetLossSeries)
+    const changed = mergeRealtimeSample(unchanged, { serverId: server.id, timestamp: 3, data: { ping_ct: null, loss_ct: false } }, 3)
+    const third = mapper.map([changed], config)[0]!
+    expect(third.latency).not.toBe(second.latency)
+    expect(third.latency[0]).toMatchObject({ latency: null, packetLoss: false })
+    expect(server.latency.ct).toBe(20)
+    expect(server.packetLoss.ct).toBe(0)
+    expect(third.history.latencySeries).toBe(first.history.latencySeries)
+    const renamed = mapper.map([changed], normalizeSiteConfig({ custom_ct_name: '另一站标签' }))[0]!
+    expect(renamed.latency[0]?.label).toBe('另一站标签')
+    const fresh = mapper.map([{ ...changed, latencyWindow: [{ timestamp: 1_700_000_006_000, ...server.latency, ct: 0 }] }], config)[0]!
+    expect(fresh.history.latencySeries).not.toBe(first.history.latencySeries)
+    expect(fresh.history.latencySeries.ct).toEqual([{ timestamp: 1_700_000_006_000, value: 0 }])
+    expect(first.history.latencySeries.cu).toEqual([{ timestamp: 1_700_000_000_000, value: null }])
+    expect(fresh.history.latencySeries.cu).toBeUndefined()
+  })
 })

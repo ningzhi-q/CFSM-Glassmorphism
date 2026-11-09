@@ -146,7 +146,7 @@ describe('接线与样式', () => {
   })
 
   it('卡片进场保留 TransitionGroup 与原位移，取消模糊合成', () => {
-    expect(home).toMatch(/<TransitionGroup\n\s+v-if="viewMode === 'card'"\n\s+v-show="!hasNoMatches"\n\s+:key="selectedGroup"\n\s+:appear="cardTransition"\n\s+:css="cardTransition"\n\s+name="node-card-switch"/)
+    expect(home).toMatch(/<TransitionGroup\n\s+v-else-if="viewMode === 'card'"\n\s+v-show="!hasNoMatches"\n\s+:key="selectedGroup"\n\s+:appear="cardTransition"\n\s+:css="cardTransition"\n\s+name="node-card-switch"/)
     expect(home).toContain('const cardTransition = computed(() => !theme.runtime.disablePageAnimation && !retainCards.value && visibleServers.value.length <= 30)')
     expect(home).toContain("'--node-item-delay': `${index * 35}ms`")
     expect(css).not.toContain('node-enter')
@@ -154,10 +154,10 @@ describe('接线与样式', () => {
     expect(css).toMatch(/\.node-card\.node-card-switch-enter-from \{\n\s+opacity: 0;\n\s+transform: translateY\(10px\) scale\(0\.985\);\n\}/)
   })
 
-  it('分组重新挂载，快捷筛选复用已有节点身份', () => {
-    // 分组：上游每个分组一个 TabsContent，切换时网格整个卸载重挂，旧卡片当帧消失、新卡片按 appear 依次进场。
+  it('小站分组重新挂载，大站分组与快捷筛选复用已有节点身份', () => {
+    // 30 台以内保留上游分组重挂载；用户要求大站切换不卡顿，超过 30 台保留同一网格。
     // 只换卡片 key 的话，Vue 要等下一帧才移走离场卡片，切换瞬间会多出一帧新旧卡片共存。
-    expect(home).toMatch(/<TransitionGroup\n\s+v-if="viewMode === 'card'"\n\s+v-show="!hasNoMatches"\n\s+:key="selectedGroup"/)
+    expect(home).toMatch(/<RetainedServerGrid\n\s+v-if="viewMode === 'card' && retainCards"\n\s+v-show="!hasNoMatches"/)
     // 用户复现同一节点的新旧卡片同时出现后，快捷筛选必须保持身份稳定。
     expect(home).toContain(':key="server.key"')
     expect(home).toContain('v-show="visibleServerKeys.has(server.key)"')

@@ -72,6 +72,14 @@ describe('simplified Chinese city presentation', () => {
     expect(unknown.reportedLocation?.subdivisionSource).toBeUndefined()
     expect(unknown.reportedLocation?.subdivision).toBeUndefined()
   })
+  it('把香港 Central 地区译为中环，保留自动定位数据且不套用到其他国家', () => {
+    const location = { latitude: 22.27832, longitude: 114.17469, country: 'HK', city: 'Hong Kong', subdivision: 'Central', subdivision_source: 'ipapi-is', source: 'cloudflare-ip', observed_at: 1794225464599 }
+    const server = toGlassServer(normalizeServer({ id: 'central', location }, apiSource('https://monitor.example')), null)
+    expect(serverCityText(server)).toBe('中环 · 香港')
+    expect(server.location).toMatchObject({ city: location.city, subdivision: location.subdivision, latitude: location.latitude, longitude: location.longitude, subdivisionSource: 'ipapi-is' })
+    expect(formatCityNameZh('Central', 'HK')).toBe('中环')
+    expect(formatCityNameZh('Central', 'ZZ')).toBe('')
+  })
   it.each([
     ['Iola', 'US', '艾奥拉'], ['Sultanbeyli', 'TR', '苏丹贝伊利'], ['Tung Chung', 'HK', '东涌'],
     ['Kampong Loyang', 'SG', '罗央'], ['Chengdu', 'CN', '成都'], ['Jeddah', 'SA', '吉达'],

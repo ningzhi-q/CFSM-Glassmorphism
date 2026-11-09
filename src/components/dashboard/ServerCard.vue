@@ -5,7 +5,7 @@ import type { GlassServer, GlassLatencySample } from '@/types/glassmorphism'
 import type { NodeCardSize } from '@/theme/settings'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppProgressThin from '@/components/ui/AppProgressThin.vue'
-import AppTooltip from '@/components/ui/AppTooltip.vue'
+import NodeProbePanel from '@/components/dashboard/NodeProbePanel.vue'
 import { loadCapacityPercent } from '@/domain/node-metrics'
 import { isRemainingValueApplicable } from '@/domain/finance'
 import { resolveRegionCoordinates } from '@/domain/advanced-tools'
@@ -200,14 +200,14 @@ function lossToneClass(loss: number): string {
 interface PingBar {
   key: string
   className: string
-  tooltip: string
+  sample: GlassLatencySample | null
 }
 
 function emptyBars(metric: string): PingBar[] {
   return Array.from({ length: EMPTY_PING_BAR_COUNT }, (_, index) => ({
     key: `${metric}-empty-${index}`,
     className: 'is-empty',
-    tooltip: '暂无探测采样',
+    sample: null,
   }))
 }
 
@@ -225,12 +225,17 @@ function buildBars(
   return points.map((point, index) => ({
     key: `${metric}-${point.timestamp}-${index}`,
     className: typeof point.value === 'number' ? tone(point.value) : 'is-gap',
-    tooltip: `${new Date(point.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}\n${typeof point.value === 'number' ? (metric === 'latency' ? formatLatency(point.value) : formatProbePercent(point.value)) : point.value === false ? '探测未配置' : '该时间段暂无采样'}`,
+    sample: point,
   }))
 }
 
+// Narrow reactive inputs so unchanged probe data does not rebuild every sample
+// and formatted timestamp when a new server object carries CPU/network metrics.
+const probeLatency = computed(() => props.server.latency)
+const latencySeries = computed(() => props.server.history.latencySeries)
+const packetLossSeries = computed(() => props.server.history.packetLossSeries)
 const probeRows = computed(() => probeDisplayRows(
-  props.server, props.probeTargets, props.probeDisplayMode, props.probeWindowHours, props.probeNow,
+  { latency: probeLatency.value, history: { latencySeries: latencySeries.value, packetLossSeries: packetLossSeries.value } }, props.probeTargets, props.probeDisplayMode, props.probeWindowHours, props.probeNow,
 ).map(row => ({
   target: row.target,
   label: row.label,
@@ -457,34 +462,24 @@ function hideMissingImage(event: Event): void {
 
       <div v-if="probeRows.length" class="node-probe-rows">
         <div v-for="row in probeRows" :key="row.target" class="node-probes" :data-probe-target="row.target">
-          <button type="button" class="node-probe" :aria-label="`${server.name} ${row.label} 延迟监测`" @click.stop="emit('probe', 'latency')" @keydown.stop>
-            <div class="node-probe__head" :title="row.latencyTitle">
-              <span class="node-probe__label">{{ row.label }}</span>
-              <span class="node-probe__value">{{ row.latencyText }}</span>
-            </div>
-            <div
-              class="node-probe__bars"
-              :style="{ gridTemplateColumns: `repeat(${row.latencyBars.length}, minmax(0, 1fr))` }"
-            >
-              <AppTooltip v-for="bar in row.latencyBars" :key="bar.key" :content="bar.tooltip" class="node-probe__bar-tip">
-                <span :class="bar.className" />
-              </AppTooltip>
-            </div>
-          </button>
-          <button type="button" class="node-probe" :aria-label="`${server.name} ${row.label} 丢包监测`" @click.stop="emit('probe', 'loss')" @keydown.stop>
-            <div class="node-probe__head" :title="row.lossTitle">
-              <span>丢包</span>
-              <span class="node-probe__value">{{ row.lossText }}</span>
-            </div>
-            <div
-              class="node-probe__bars"
-              :style="{ gridTemplateColumns: `repeat(${row.lossBars.length}, minmax(0, 1fr))` }"
-            >
-              <AppTooltip v-for="bar in row.lossBars" :key="bar.key" :content="bar.tooltip" class="node-probe__bar-tip">
-                <span :class="bar.className" />
-              </AppTooltip>
-            </div>
-          </button>
+          <NodeProbePanel
+            metric="latency"
+            :label="row.label"
+            :value="row.latencyText"
+            :title="row.latencyTitle"
+            :accessible-label="`${server.name} ${row.label} 延迟监测`"
+            :bars="row.latencyBars"
+            @select="emit('probe', 'latency')"
+          />
+          <NodeProbePanel
+            metric="loss"
+            label="丢包"
+            :value="row.lossText"
+            :title="row.lossTitle"
+            :accessible-label="`${server.name} ${row.label} 丢包监测`"
+            :bars="row.lossBars"
+            @select="emit('probe', 'loss')"
+          />
         </div>
       </div>
       <div v-if="server.tags.length > 0" class="node-tags" aria-label="节点标签">

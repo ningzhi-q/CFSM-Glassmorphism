@@ -505,13 +505,19 @@ export function mergeRealtimeSample(
   if ('boot_time' in input) next.bootTime = normalized.bootTime
   if ('agent_version' in input) next.agentVersion = normalized.agentVersion
 
-  const latency = { ...server.latency }
-  const packetLoss = { ...server.packetLoss }
+  let latency = server.latency
+  let packetLoss = server.packetLoss
   for (const target of PROBE_TARGETS) {
     const pingKey = `ping_${target}`
     const lossKey = `loss_${target}`
-    if (pingKey in input) latency[target] = normalized.latency[target]
-    if (lossKey in input) packetLoss[target] = normalized.packetLoss[target]
+    if (pingKey in input && latency[target] !== normalized.latency[target]) {
+      if (latency === server.latency) latency = { ...latency }
+      latency[target] = normalized.latency[target]
+    }
+    if (lossKey in input && packetLoss[target] !== normalized.packetLoss[target]) {
+      if (packetLoss === server.packetLoss) packetLoss = { ...packetLoss }
+      packetLoss[target] = normalized.packetLoss[target]
+    }
   }
   next.latency = latency
   next.packetLoss = packetLoss
