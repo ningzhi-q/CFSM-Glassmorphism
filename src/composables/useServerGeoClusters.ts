@@ -33,7 +33,20 @@ export function clusterKey(cluster: RegionCluster): string {
 export function useServerGeoClusters(source: MaybeRefOrGetter<readonly GlassServer[]>) {
   const allServers = computed(() => toValue(source))
 
-  const regionClusters = computed<RegionCluster[]>(() => buildEarthPoints(allServers.value)
+  // Keep map snapshots stable when only CPU, traffic or probe samples change.
+  // Members are map metadata snapshots; a detail action resolves the live node by key.
+  const mapSnapshot = computed((previous: { fingerprint: string, servers: readonly GlassServer[] } | undefined) => {
+    const servers = allServers.value
+    const fingerprint = JSON.stringify(servers.map(server => [
+      server.key, server.name, server.group, server.online, server.region, server.providerTags.asn,
+      server.location?.latitude, server.location?.longitude, server.location?.countryCode,
+      server.location?.city, server.location?.source, server.location?.citySource,
+      server.location?.subdivision,
+    ]))
+    return previous?.fingerprint === fingerprint ? previous : { fingerprint, servers }
+  })
+
+  const regionClusters = computed<RegionCluster[]>(() => buildEarthPoints(mapSnapshot.value.servers)
     .map((point) => ({
       id: point.id,
       code: point.code,
