@@ -31,6 +31,8 @@ import {
   formatPercent,
   formatProbePercent,
   MISSING_TEXT,
+  isPermanentExpiration,
+  PERMANENT_EXPIRY_TEXT,
   normalizeTimestampMilliseconds,
 } from '@/utils/format'
 import { trafficTextTone, usageStatus } from '@/utils/progress-status'
@@ -112,12 +114,13 @@ const priceText = computed(() => {
   const text = formatDisplayPrice(props.server.price, props.server.currency, props.server.billingCycle)
   return text === MISSING_TEXT ? '' : text
 })
-const expireVisible = computed(() => props.server.showExpire && daysUntilExpiry(props.server.expireDate) !== null)
+const expireVisible = computed(() => props.server.showExpire && (isPermanentExpiration(props.server.expireDate) || daysUntilExpiry(props.server.expireDate) !== null))
 /*
  * 没有可显示到期日的付费节点：上游 NodeCard 仍画两行（`-` 与剩余价值），但它把未知到期的
  * 剩余价值算成 0，显示成「€0」。这里保留同样的两行结构，第二行如实为占位，不写成 0。
  */
 const expiryInfo = computed(() => {
+  if (isPermanentExpiration(props.server.expireDate)) return { text: PERMANENT_EXPIRY_TEXT, prefix: '', value: '', unit: '', tone: 'neutral' }
   const days = daysUntilExpiry(props.server.expireDate)
   if (days === null) return { text: MISSING_TEXT, prefix: '', value: '', unit: '', tone: 'neutral' }
   if (days <= 0) return { text: '已过期', prefix: '', value: '', unit: '', tone: 'danger' }

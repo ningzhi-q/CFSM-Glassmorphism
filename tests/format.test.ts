@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   formatBytes,
   formatCfsmDate,
+  formatDetailExpireText,
+  detailExpireStatus,
+  formatDisplayPrice,
   formatCurrencyValue,
   formatDisplayBytesSplit,
   formatDisplaySpeed,
@@ -37,6 +40,12 @@ describe('time formatting', () => {
   })
 
   it('strictly parses CFSM expiry dates without leaking Invalid Date', () => {
+    expect(formatCfsmDate('never')).toBe('∞ 永久')
+    expect(parseCfsmDate('never')).toBeNull()
+    expect(formatDetailExpireText(null, 'never')).toBe('∞ 永久')
+    expect(detailExpireStatus(null, 'never')).toBe('permanent')
+    expect(formatDetailExpireText(null, '')).toBe('-')
+    expect(formatDisplayPrice('99', '¥', 'one_time')).toBe('¥99 / 一次性')
     expect(formatCfsmDate('2028-02-29')).toBe('2028/02/29')
     expect(parseCfsmDate('2027-02-29')).toBeNull()
     expect(parseCfsmDate('2026-13-01')).toBeNull()

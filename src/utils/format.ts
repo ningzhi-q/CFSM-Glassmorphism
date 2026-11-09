@@ -138,7 +138,14 @@ export function parseCfsmDate(value: string | null): Date | null {
   return Number.isNaN(timestamp) ? null : new Date(timestamp)
 }
 
+export const PERMANENT_EXPIRY_TEXT = '∞ 永久'
+
+export function isPermanentExpiration(value: string | null): boolean {
+  return value?.trim() === 'never'
+}
+
 export function formatCfsmDate(value: string | null): string {
+  if (isPermanentExpiration(value)) return PERMANENT_EXPIRY_TEXT
   const dateOnly = value ? calendarDate(value.trim()) : null
   if (dateOnly) {
     return `${dateOnly.year}/${String(dateOnly.month).padStart(2, '0')}/${String(dateOnly.day).padStart(2, '0')}`
@@ -282,6 +289,7 @@ const DISPLAY_BILLING_CYCLE_LABELS: Readonly<Record<string, string>> = {
   three_years: '三年',
   four_years: '四年',
   five_years: '五年',
+  one_time: '一次性',
 }
 
 export function formatDisplayBillingCycle(billingCycle: string | null): string {
@@ -331,10 +339,11 @@ export function formatDetailUptime(bootTime: number | null, now = Date.now()): s
   return parts.length > 0 ? parts.join(' ') : '不足 1 分钟'
 }
 
-export type ExpireStatus = 'unknown' | 'expired' | 'critical' | 'warning' | 'normal' | 'long_term'
+export type ExpireStatus = 'unknown' | 'expired' | 'critical' | 'warning' | 'normal' | 'long_term' | 'permanent'
 
 /** 阈值取自 Komari `EXPIRE_THRESHOLDS`：5 天内 critical、10 天内 warning、超过 36500 天视为长期。 */
-export function detailExpireStatus(days: number | null): ExpireStatus {
+export function detailExpireStatus(days: number | null, expireDate: string | null = null): ExpireStatus {
+  if (isPermanentExpiration(expireDate)) return 'permanent'
   if (days === null) return 'unknown'
   if (days <= 0) return 'expired'
   if (days <= 5) return 'critical'
@@ -344,8 +353,9 @@ export function detailExpireStatus(days: number | null): ExpireStatus {
 }
 
 /** 对应 Komari `getExpireText`：未知 `-`、已过期、长期，否则 `N 天`。 */
-export function formatDetailExpireText(days: number | null): string {
-  switch (detailExpireStatus(days)) {
+export function formatDetailExpireText(days: number | null, expireDate: string | null = null): string {
+  switch (detailExpireStatus(days, expireDate)) {
+    case 'permanent': return PERMANENT_EXPIRY_TEXT
     case 'unknown': return '-'
     case 'expired': return '已过期'
     case 'long_term': return '长期'

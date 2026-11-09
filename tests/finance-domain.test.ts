@@ -93,8 +93,9 @@ describe('价格、周期与到期', () => {
     expect(parseBillingPrice('1e3')).toEqual({ status: 'invalid' })
   })
 
-  it('周期：只认 CFSM 的 8 个枚举，未知与空都不猜', () => {
-    expect(Object.keys(BILLING_CYCLE_DAYS)).toEqual(['month', 'quarter', 'half_year', 'year', 'two_years', 'three_years', 'four_years', 'five_years'])
+  it('周期：只认 CFSM 的 9 个枚举，未知与空都不猜', () => {
+    expect(Object.keys(BILLING_CYCLE_DAYS)).toEqual(['month', 'quarter', 'half_year', 'year', 'two_years', 'three_years', 'four_years', 'five_years', 'one_time'])
+    expect(parseBillingCycle('one_time')).toBe('one_time')
     expect(parseBillingCycle('five_years')).toBe('five_years')
     expect(parseBillingCycle('YEAR')).toBe('year')
     expect(parseBillingCycle('每两周')).toBeNull()
@@ -103,6 +104,8 @@ describe('价格、周期与到期', () => {
   })
 
   it('到期：缺失与无效分开，不混成已过期', () => {
+    expect(parseBillingExpiry('never')).toEqual({ status: 'permanent' })
+    expect(parseBillingExpiry(' never ')).toEqual({ status: 'permanent' })
     expect(parseBillingExpiry('')).toEqual({ status: 'missing' })
     expect(parseBillingExpiry(null)).toEqual({ status: 'missing' })
     expect(parseBillingExpiry('2026-02-30')).toEqual({ status: 'invalid' })
@@ -112,6 +115,17 @@ describe('价格、周期与到期', () => {
 
 describe('原币月均与剩余价值（固定样本）', () => {
   const sampleFiveYear = { price: '30.00', billingCycle: 'five_years', expireDate: '2030-09-17' }
+
+  it('一次性无月均支出，永久与有限到期分别计算剩余价值', () => {
+    const purchase = { price: '99', billingCycle: 'one_time', expireDate: 'never' }
+    expect(monthlyCost(purchase)).toEqual({ status: 'ok', amount: 0 })
+    expect(remainingValueOf(purchase, NOW)).toEqual({ status: 'ok', amount: 99 })
+    expect(remainingValueOf({ ...purchase, expireDate: '2026-09-18' }, NOW)).toEqual({ status: 'ok', amount: 99 })
+    expect(remainingValueOf({ ...purchase, expireDate: '2026-09-16' }, NOW)).toEqual({ status: 'ok', amount: 0 })
+    expect(remainingValueOf({ ...purchase, expireDate: '' }, NOW)).toEqual({ status: 'unavailable', reason: 'expiry-missing' })
+    expect(remainingValueOf({ ...purchase, expireDate: 'invalid' }, NOW)).toEqual({ status: 'unavailable', reason: 'expiry-invalid' })
+    expect(monthlyCost({ ...purchase, billingCycle: 'month' })).toEqual({ status: 'ok', amount: 99 })
+  })
 
   it('虚构样本 €30.00 / 五年：月均 0.4932，剩余价值 24.0164', () => {
     const monthly = monthlyCost(sampleFiveYear)

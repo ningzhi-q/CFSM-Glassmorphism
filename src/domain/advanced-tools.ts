@@ -5,6 +5,7 @@ import type { ThemeSettings } from '@/theme/settings'
 import type { GlassServer } from '@/types/glassmorphism'
 import { formatCityNameZh } from '@/utils/city-name'
 import { countryName } from '@/utils/country-name'
+import { isPermanentExpiration } from '@/utils/format'
 
 type Coordinates = readonly [latitude: number, longitude: number]
 
@@ -177,7 +178,9 @@ export function evaluateServerHealth(server: GlassServer, settings: Pick<ThemeSe
   evaluatedSignals += addThresholdIssue(issues, '流量配额', usage?.percent ?? null, settings.homeTrafficWarningThreshold, 100)
 
   const days = server.showExpire ? daysUntilExpiry(server.expireDate, now) : null
-  if (days !== null) {
+  if (server.showExpire && isPermanentExpiration(server.expireDate)) {
+    evaluatedSignals += 1
+  } else if (days !== null) {
     evaluatedSignals += 1
     if (days < 0) issues.push({ metric: '到期', message: `已过期 ${Math.abs(days)} 天`, tone: 'critical' })
     else if (days <= settings.homeExpiringDays) issues.push({ metric: '到期', message: `${days} 天后到期`, tone: 'warning' })

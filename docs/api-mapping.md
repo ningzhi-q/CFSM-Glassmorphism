@@ -195,3 +195,7 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 ## 首页探测展示增强
 
 线路筛选、排序及近 1／2 小时窗口直接使用 `/api/servers` 已适配的 `ping`／`loss`；不逐卡请求 history。`probe-display.ts` 按当前时间裁切序列，并让柱带与平均使用同一序列，保留 `false`／`null` 空洞。仅原始窗口完全缺失时显示明确标注的最近一次上报；已有窗口过期或全缺口时显示无有效采样。配置沿用 `POST /api/theme_options` 的完整归一化快照保存。
+
+## 2026-11-09：计费扩展
+
+公开服务器字段原样适配：`billing_cycle: "one_time"`、`expire_date: "never"`。仅格式与财务层识别这两个值；空日期仍是未设置，非法日期仍不可用。主题不执行管理端计费联动，不写节点信息；无新端点，仍保留每台服务器的 API Base 归属。
