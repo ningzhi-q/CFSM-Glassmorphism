@@ -2,6 +2,8 @@
 import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppHeader from '@/components/dashboard/AppHeader.vue'
+import ProbeTargetOrder from '@/components/dashboard/ProbeTargetOrder.vue'
+import { DEFAULT_PROBE_LABELS } from '@/constants/probes'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import {
   isFieldEnabled,
@@ -117,7 +119,7 @@ function fieldEnabled(field: ThemeField): boolean {
 
 function textValue(key: keyof ThemeSettings): string {
   const value = theme.draft[key]
-  return typeof value === 'string' ? value : ''
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 }
 
 function numberValue(key: keyof ThemeSettings): number | null {
@@ -147,7 +149,7 @@ function onText(key: keyof ThemeSettings, event: Event): void {
 
 function onSelect(key: keyof ThemeSettings, event: Event): void {
   const target = event.target
-  if (target instanceof HTMLSelectElement) setValue(key, target.value)
+  if (target instanceof HTMLSelectElement) setValue(key, key === 'probeWindowHours' ? Number(target.value) : target.value)
 }
 
 function onSwitch(key: keyof ThemeSettings, event: Event): void {
@@ -303,6 +305,13 @@ watch(siteTitle, (title) => {
                       <small v-if="field.note" class="settings-note">{{ field.note }}</small>
                     </span>
                   </label>
+
+                  <div v-else-if="field.kind === 'probe-targets'" class="settings-field settings-field--wide">
+                    <span>{{ field.label }}</span>
+                    <ProbeTargetOrder :model-value="theme.draft.probeTargets" :labels="app.config?.probeLabels ?? DEFAULT_PROBE_LABELS" @update:model-value="setValue('probeTargets', $event)" />
+                    <small>{{ field.help }}</small>
+                    <small class="settings-note">{{ field.note }}</small>
+                  </div>
 
                   <label
                     v-else

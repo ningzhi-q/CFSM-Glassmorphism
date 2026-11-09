@@ -61,10 +61,10 @@ describe('字重落在与上游相同的实体字面上', () => {
     expect(cssBlock('.node-metric__value')).toContain('font-weight: 500')
   })
 
-  it('延迟 / 丢包面板数值是 500，且不加上游没有的 tabular-nums', () => {
+  it('延迟 / 丢包面板数值是 500，遵循当前上游多线路的 tabular-nums', () => {
     const probe = cssBlock('.node-probe__value')
     expect(probe).toContain('font-weight: 500')
-    expect(probe).not.toContain('tabular-nums')
+    expect(probe).toContain('font-variant-numeric: tabular-nums')
   })
 
   it('徽章是 12px / 500 / 16px，对应上游 badgeVariants 的 text-xs font-medium', () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, inject, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useNow } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import AppHeader from '@/components/dashboard/AppHeader.vue'
 import AdvancedTools from '@/components/dashboard/AdvancedTools.vue'
@@ -47,6 +48,7 @@ import type { DashboardSort, DashboardViewMode, GlassServer } from '@/types/glas
 // App.vue 的 `KeepAlive :include="['HomeView']"` 按组件名匹配，与 Komari 一致。
 defineOptions({ name: 'HomeView' })
 
+const probeNow = useNow({ interval: 60_000 })
 const app = useAppStore()
 const serverStore = useServersStore()
 const preferences = useDashboardPreferencesStore()
@@ -615,10 +617,14 @@ onUnmounted(() => realtime.stop())
                 v-for="(server, index) in renderedCardServers"
                 v-show="visibleServerKeys.has(server.key)"
                 :key="server.key"
-                v-memo="[visibleServerKeys.has(server.key) ? server : server.key, showSource, theme.runtime.nodeCardSize, preferences.isFavorite(server.key), priceVisible, visibleServerKeys.has(server.key), cardTransition ? index : -1]"
+                v-memo="[visibleServerKeys.has(server.key) ? server : server.key, showSource, theme.runtime.nodeCardSize, theme.runtime.probeDisplayMode, theme.runtime.probeTargets, theme.runtime.probeWindowHours, visibleServerKeys.has(server.key) ? probeNow.getTime() : 0, preferences.isFavorite(server.key), priceVisible, visibleServerKeys.has(server.key), cardTransition ? index : -1]"
                 :server="server"
                 :show-source="showSource"
                 :density="theme.runtime.nodeCardSize"
+                :probe-display-mode="theme.runtime.probeDisplayMode"
+                :probe-targets="theme.runtime.probeTargets"
+                :probe-window-hours="theme.runtime.probeWindowHours"
+                :probe-now="probeNow.getTime()"
                 :favorite="preferences.isFavorite(server.key)"
                 :price-visible="priceVisible"
                 :style="cardTransition ? cardStyle(index) : undefined"

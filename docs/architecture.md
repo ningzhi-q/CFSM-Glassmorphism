@@ -399,3 +399,9 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 ## 2026-11-08：城市名称统一为简体中文
 
 参见 [城市名称的简体中文显示](city-localization.md)。使用本地 GeoNames 名称库和 OpenCC，展示与中文搜索采用统一译名；REST/WS 原始城市和坐标不变，不增加 API 请求或设置键。不存在可靠译名时显示中文提示，不生成猜测的地名。旧迁移定位标签经用户授权清理，自动属地无需标签继续工作。
+
+## 可配置的首页探测区
+
+`domain/probe-display.ts` 负责白名单目标解析、选择顺序、时间窗口裁切和真实平均值；`ServerCard.vue` 只把展示模型渲染成双列色带。`HomeView.vue` 为所有卡片共享一分钟时钟并把三项主题运行时设置加入 memo 依赖，避免每卡计时或额外网络请求。目标标签始终来自每台 `GlassServer.latency` 的所属站点适配结果。
+
+`ProbeTargetOrder.vue` 只编辑草稿，使用 SortableJS 的鼠标／触摸排序，并在结束前恢复临时 DOM 移动，再让 Vue 按稳定 target key 更新；Escape、取消事件、失焦、页面隐藏和卸载取消拖动。勾选、上下按钮、方向键与恢复默认均由设置页统一保存。

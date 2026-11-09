@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { GlassServer } from '@/types/glassmorphism'
+import { PROBE_TARGETS } from '@/constants/probes'
+import type { GlassServer, GlassLatencySample } from '@/types/glassmorphism'
 import type { NodeCardSize } from '@/theme/settings'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppProgressThin from '@/components/ui/AppProgressThin.vue'
 import AppTooltip from '@/components/ui/AppTooltip.vue'
 import { loadCapacityPercent } from '@/domain/node-metrics'
 import { resolveRegionCoordinates } from '@/domain/advanced-tools'
-import { probeSeriesFor, windowAverage, type ProbeSeriesMap } from '@/domain/probe-window'
+import { probeDisplayRows, type ProbeDisplayMetric } from '@/domain/probe-display'
 import {
   daysUntilExpiry,
   remainingValue,
@@ -43,7 +44,7 @@ import { trafficTextTone, usageStatus } from '@/utils/progress-status'
  *
  * 数据全部来自既有 normalized model，不解析 wire payload，也不补造缺失值。
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   server: GlassServer
   showSource: boolean
   /** 卡片密度直接来自主题设置 `nodeCardSize`，与 Komari 的 NodeCard 一致。 */
@@ -51,7 +52,16 @@ const props = defineProps<{
   favorite: boolean
   /** 主题级价格隐私（未登录隐藏价格）。每台节点自身的 showPrice 仍单独生效。 */
   priceVisible: boolean
-}>()
+  probeDisplayMode?: 'single' | 'multiple'
+  probeTargets?: string
+  probeWindowHours?: 1 | 2
+  probeNow?: number
+}>(), {
+  probeDisplayMode: 'single',
+  probeTargets: PROBE_TARGETS.join('\n'),
+  probeWindowHours: 2,
+  probeNow: () => Date.now(),
+})
 
 const emit = defineEmits<{
   open: []
@@ -197,84 +207,36 @@ function emptyBars(metric: string): PingBar[] {
   }))
 }
 
-const primaryProbe = computed(() => props.server.latency[0] ?? null)
-
-/*
- * 延迟与丢包显示的是**窗口平均**，与上游一致：Komari `useNodePingDisplay` 的
- * `latencyDisplay` / `lossDisplay` 取的是 `pingStats.avgLatency` / `avgLoss`，
- * 不是最近一次采样。窗口就是 `/api/servers` 已经返回的 `ping` / `loss`
- * （最近 2 小时、最多 20 个真实采样），因此不需要任何额外请求。
- *
- * 站点关闭三网详情时后端返回空数组，此时回落到本次上报的最新值，并在标题里
- * 说明口径，不把"没有窗口"伪装成平均值。
- */
-const latencyWindow = computed(() => {
-  const target = primaryProbe.value?.target
-  return target ? windowAverage(props.server.history.latencySeries, target) : { value: null, samples: 0 }
-})
-const lossWindow = computed(() => {
-  const target = primaryProbe.value?.target
-  return target ? windowAverage(props.server.history.packetLossSeries, target) : { value: null, samples: 0 }
-})
-const latencyText = computed(() => (
-  latencyWindow.value.value === null
-    ? formatLatency(primaryProbe.value?.latency ?? false)
-    : formatLatency(latencyWindow.value.value)
-))
-const lossText = computed(() => (
-  lossWindow.value.value === null
-    ? formatProbePercent(primaryProbe.value?.packetLoss ?? false)
-    : formatProbePercent(lossWindow.value.value)
-))
-
-function probeTitle(label: string, samples: number): string | undefined {
-  const probe = primaryProbe.value
-  if (!probe) return undefined
-  return samples === 0
-    ? `${probe.label} 最近一次上报`
-    : `${probe.label} ${label}：按窗口内 ${samples} 个真实采样计算`
+function probeTitle(label: string, metric: ProbeDisplayMetric, name: string): string {
+  if (metric.latest) return `${name} 最近一次上报（未提供窗口）`
+  return `${name} 近 ${props.probeWindowHours} 小时${label}：${metric.samples ? `按 ${metric.samples} 个真实采样计算` : '暂无有效采样'}`
 }
 
-const latencyTitle = computed(() => probeTitle('平均延迟', latencyWindow.value.samples))
-const lossTitle = computed(() => probeTitle('平均丢包', lossWindow.value.samples))
-
-/*
- * 一根柱子 = 一个时间桶，与 Komari `useNodePingDisplay.buildPingBars` 一致
- * （上游是 `points.map(...)`，逐点渲染）。
- *
- * 柱子只画**当前面板所标注的那个探测目标**的序列。此前的实现把
- * 20 个时间桶 × 4 条线路拍平成一个数组，还顺手过滤掉了空洞，
- * 结果既不是时间序列、柱数随缺口变化，柱子与标题上的线路也对不上——
- * 这就是第 14 轮修掉的 BUG-001。
- *
- * `null`（该桶无采样）保留为原位的中性柱，对应上游的 `bg-muted-foreground/15`；
- * 整体无数据时才回落到 20 根更淡的占位柱（`bg-muted-foreground/10`）。
- */
 function buildBars(
-  metric: string,
-  series: ProbeSeriesMap,
+  metric: 'latency' | 'loss',
+  points: readonly GlassLatencySample[],
   tone: (value: number) => string,
 ): PingBar[] {
-  const target = primaryProbe.value?.target
-  const points = target ? probeSeriesFor(series, target) : []
   if (points.length === 0) return emptyBars(metric)
   return points.map((point, index) => ({
     key: `${metric}-${point.timestamp}-${index}`,
     className: typeof point.value === 'number' ? tone(point.value) : 'is-gap',
-    tooltip: `${new Date(normalizeTimestampMilliseconds(point.timestamp) ?? point.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}\n${typeof point.value === 'number' ? (metric === 'latency' ? formatLatency(point.value) : formatProbePercent(point.value)) : point.value === false ? '探测未配置' : '该时间段暂无采样'}`,
+    tooltip: `${new Date(point.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}\n${typeof point.value === 'number' ? (metric === 'latency' ? formatLatency(point.value) : formatProbePercent(point.value)) : point.value === false ? '探测未配置' : '该时间段暂无采样'}`,
   }))
 }
 
-const latencyBars = computed(() => buildBars(
-  'latency',
-  props.server.history.latencySeries,
-  latencyToneClass,
-))
-const lossBars = computed(() => buildBars(
-  'loss',
-  props.server.history.packetLossSeries,
-  lossToneClass,
-))
+const probeRows = computed(() => probeDisplayRows(
+  props.server, props.probeTargets, props.probeDisplayMode, props.probeWindowHours, props.probeNow,
+).map(row => ({
+  target: row.target,
+  label: row.label,
+  latencyText: formatLatency(row.latency.value),
+  lossText: formatProbePercent(row.loss.value),
+  latencyTitle: probeTitle('平均延迟', row.latency, row.label),
+  lossTitle: probeTitle('平均丢包', row.loss, row.label),
+  latencyBars: buildBars('latency', row.latency.points, latencyToneClass),
+  lossBars: buildBars('loss', row.loss.points, lossToneClass),
+})))
 
 function handleKeydown(event: KeyboardEvent): void {
   if (event.key !== 'Enter' && event.key !== ' ') return
@@ -489,37 +451,38 @@ function hideMissingImage(event: Event): void {
         </div>
       </div>
 
-      <div v-if="primaryProbe" class="node-probes">
-        <button type="button" class="node-probe" :aria-label="`${server.name} 延迟监测`" @click.stop="emit('probe', 'latency')" @keydown.stop>
-          <div class="node-probe__head" :title="latencyTitle">
-            <span>延迟</span>
-            <span class="node-probe__value">{{ latencyText }}</span>
-          </div>
-          <div
-            class="node-probe__bars"
-            :style="{ gridTemplateColumns: `repeat(${latencyBars.length}, minmax(0, 1fr))` }"
-          >
-            <AppTooltip v-for="bar in latencyBars" :key="bar.key" :content="bar.tooltip" class="node-probe__bar-tip">
-              <span :class="bar.className" />
-            </AppTooltip>
-          </div>
-        </button>
-        <button type="button" class="node-probe" :aria-label="`${server.name} 丢包监测`" @click.stop="emit('probe', 'loss')" @keydown.stop>
-          <div class="node-probe__head" :title="lossTitle">
-            <span>丢包</span>
-            <span class="node-probe__value">{{ lossText }}</span>
-          </div>
-          <div
-            class="node-probe__bars"
-            :style="{ gridTemplateColumns: `repeat(${lossBars.length}, minmax(0, 1fr))` }"
-          >
-            <AppTooltip v-for="bar in lossBars" :key="bar.key" :content="bar.tooltip" class="node-probe__bar-tip">
-              <span :class="bar.className" />
-            </AppTooltip>
-          </div>
-        </button>
+      <div v-if="probeRows.length" class="node-probe-rows">
+        <div v-for="row in probeRows" :key="row.target" class="node-probes" :data-probe-target="row.target">
+          <button type="button" class="node-probe" :aria-label="`${server.name} ${row.label} 延迟监测`" @click.stop="emit('probe', 'latency')" @keydown.stop>
+            <div class="node-probe__head" :title="row.latencyTitle">
+              <span class="node-probe__label">{{ row.label }}</span>
+              <span class="node-probe__value">{{ row.latencyText }}</span>
+            </div>
+            <div
+              class="node-probe__bars"
+              :style="{ gridTemplateColumns: `repeat(${row.latencyBars.length}, minmax(0, 1fr))` }"
+            >
+              <AppTooltip v-for="bar in row.latencyBars" :key="bar.key" :content="bar.tooltip" class="node-probe__bar-tip">
+                <span :class="bar.className" />
+              </AppTooltip>
+            </div>
+          </button>
+          <button type="button" class="node-probe" :aria-label="`${server.name} ${row.label} 丢包监测`" @click.stop="emit('probe', 'loss')" @keydown.stop>
+            <div class="node-probe__head" :title="row.lossTitle">
+              <span>丢包</span>
+              <span class="node-probe__value">{{ row.lossText }}</span>
+            </div>
+            <div
+              class="node-probe__bars"
+              :style="{ gridTemplateColumns: `repeat(${row.lossBars.length}, minmax(0, 1fr))` }"
+            >
+              <AppTooltip v-for="bar in row.lossBars" :key="bar.key" :content="bar.tooltip" class="node-probe__bar-tip">
+                <span :class="bar.className" />
+              </AppTooltip>
+            </div>
+          </button>
+        </div>
       </div>
-
       <div v-if="server.tags.length > 0" class="node-tags" aria-label="节点标签">
         <span v-for="tag in server.tags" :key="tag" class="node-tag">{{ tag }}</span>
       </div>

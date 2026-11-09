@@ -91,11 +91,11 @@ describe('标签只有图标着色，文字与提示行是次要色', () => {
     expect(block('.node-metric__hint--danger')).toContain('color: var(--destructive)')
   })
 
-  it('上行 success、下行 blue-600，盒子与面板是玻璃主题覆盖后的白色 15%', () => {
+  it('上行 success、下行 blue-600，盒子保持玻璃表面，探测面板跟随当前上游多线路表面', () => {
     expect(block('.node-box__row--up')).toContain('color: var(--success)')
     expect(block('.node-box__row--down')).toContain('oklch(0.546 0.245 262.881)')
     expect(block('.node-box')).toContain('background: rgb(255 255 255 / 15%)')
-    expect(block('.node-probe')).toContain('background: rgb(255 255 255 / 15%)')
+    expect(block('.node-probe')).toContain('background: rgb(100 116 139 / 5%)')
   })
 
   it('标签边框用不受预设影响的基础次要色', () => {

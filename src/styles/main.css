@@ -1990,6 +1990,13 @@ a {
   color: oklch(0.546 0.245 262.881);
 }
 
+.node-probe-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
 .node-probes {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2005,7 +2012,7 @@ a {
   gap: 6px;
   padding: 8px;
   border-radius: 8px;
-  background: rgb(255 255 255 / 15%);
+  background: rgb(100 116 139 / 5%);
   width: 100%;
   border: 0;
   font: inherit;
@@ -2040,13 +2047,21 @@ a {
 }
 
 /*
- * 上游延迟 / 丢包面板的数值是 `<span class="font-medium">`：**500**，且**没有**
- * `tabular-nums`，颜色也走继承的 foreground。这里此前写成 600 + tabular-nums，
- * 600 会被字重匹配落到 Bold，11px「21.0 ms」实测 43.01px 对 40.66px。
+ * 当前上游多线路面板：数值字重 500、tabular-nums，颜色继承 foreground。
  */
+.node-probe__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .node-probe__value {
   color: var(--ink);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /*

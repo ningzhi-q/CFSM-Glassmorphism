@@ -1,5 +1,7 @@
 import type { DashboardThemeMode, DashboardViewMode } from '@/types/glassmorphism'
 import { parseGroupOrder } from '@/domain/group-order'
+import { parseProbeTargets } from '@/domain/probe-display'
+import { PROBE_TARGETS } from '@/constants/probes'
 
 export const THEME_SETTINGS_STORAGE_KEY = 'cfsm-glassmorphism.theme-options.v1'
 export const LEGACY_DASHBOARD_STORAGE_KEY = 'cfsm-glassmorphism.dashboard.v1'
@@ -19,6 +21,9 @@ export interface ThemeSettings {
   defaultViewMode: 'card' | 'list'
   nodeCardSize: NodeCardSize
   groupOrder: string
+  probeDisplayMode: 'single' | 'multiple'
+  probeTargets: string
+  probeWindowHours: 1 | 2
   alertEnabled: boolean
   alertTitle: string
   alertContent: string
@@ -71,6 +76,9 @@ export const THEME_SETTING_KEYS = [
   'defaultViewMode',
   'nodeCardSize',
   'groupOrder',
+  'probeDisplayMode',
+  'probeTargets',
+  'probeWindowHours',
   'alertEnabled',
   'alertTitle',
   'alertContent',
@@ -152,6 +160,9 @@ export const DEFAULT_THEME_SETTINGS: Readonly<ThemeSettings> = Object.freeze({
   defaultViewMode: 'card',
   nodeCardSize: 'compact',
   groupOrder: '',
+  probeDisplayMode: 'single',
+  probeTargets: PROBE_TARGETS.join('\n'),
+  probeWindowHours: 2,
   alertEnabled: false,
   alertTitle: '',
   alertContent: '',
@@ -403,6 +414,9 @@ export function normalizeThemeSettingsLayer(
     defaultViewMode: oneOf(input.defaultViewMode, ['card', 'list'], fallback.defaultViewMode),
     nodeCardSize: oneOf(input.nodeCardSize, ['mini', 'compact', 'comfortable', 'large'], fallback.nodeCardSize),
     groupOrder: typeof input.groupOrder === 'string' ? parseGroupOrder(input.groupOrder).join('\n') : fallback.groupOrder,
+    probeDisplayMode: oneOf(input.probeDisplayMode, ['single', 'multiple'], fallback.probeDisplayMode),
+    probeTargets: typeof input.probeTargets === 'string' ? parseProbeTargets(input.probeTargets).join('\n') : fallback.probeTargets,
+    probeWindowHours: input.probeWindowHours === 1 || input.probeWindowHours === 2 ? input.probeWindowHours : fallback.probeWindowHours,
     alertEnabled: booleanValue(input.alertEnabled, fallback.alertEnabled),
     alertTitle: textValue(input.alertTitle, fallback.alertTitle),
     alertContent: textValue(input.alertContent, fallback.alertContent),
@@ -470,6 +484,9 @@ export function serializeThemeSettings(settings: ThemeSettings): Record<string, 
     defaultViewMode: settings.defaultViewMode,
     nodeCardSize: settings.nodeCardSize,
     groupOrder: settings.groupOrder,
+    probeDisplayMode: settings.probeDisplayMode,
+    probeTargets: settings.probeTargets,
+    probeWindowHours: settings.probeWindowHours,
     alertEnabled: settings.alertEnabled,
     alertTitle: settings.alertTitle,
     alertContent: settings.alertContent,

@@ -14,10 +14,10 @@ import type { ThemeSettings } from '@/theme/settings'
  *
  * CFSM 公开接口确实不提供的两项（`rpcTransportMode`、`visitorInfoEnabled`）不在这张表里：
  * 设置页不渲染它们，避免出现点了没反应的控件。两项仍留在 `theme/settings.ts` 的 48 项
- * 上游字段与保存快照中（加上用户增强 groupOrder 共 49 项；保存协议要求发送完整对象）；最终稳定版决定保留，见 `docs/todo.md` TODO-02。
+ * 上游字段与保存快照中（加上用户增强 groupOrder 共 52 项；保存协议要求发送完整对象）；最终稳定版决定保留，见 `docs/todo.md` TODO-02。
  */
 
-export type ThemeFieldKind = 'select' | 'switch' | 'text' | 'password' | 'number' | 'textarea'
+export type ThemeFieldKind = 'select' | 'switch' | 'text' | 'password' | 'number' | 'textarea' | 'probe-targets'
 
 export interface ThemeFieldOption {
   value: string
@@ -297,6 +297,21 @@ export const THEME_SETTINGS_FORM: readonly ThemeFieldGroup[] = [
   {
     title: '05 · 节点卡片、列表与快捷控制',
     fields: [
+      {
+        key: 'probeDisplayMode', label: '延迟／丢包展示', kind: 'select',
+        options: [{ value: 'single', label: '单行（首条可用线路）' }, { value: 'multiple', label: '多行（全部选中线路）' }],
+        help: '单行显示排序后的首条可用线路，多行逐条显示选中的可用线路。',
+      },
+      {
+        key: 'probeWindowHours', label: '探测时间范围', kind: 'select',
+        options: [{ value: '1', label: '近 1 小时' }, { value: '2', label: '近 2 小时' }],
+        help: '色带与平均值使用同一时间范围；没有窗口时明确显示最近一次上报。',
+      },
+      {
+        key: 'probeTargets', label: '探测线路与顺序', kind: 'probe-targets', wide: true,
+        help: '勾选需要显示的线路，拖动手柄或使用上下按钮调整顺序。全部取消可隐藏探测区；未配置的线路不会显示。',
+        note: '这里显示主站线路名称；每张卡片使用其所属站点的真实线路名称。',
+      },
       {
         key: 'homeQuickControlsEnabled',
         label: '显示主页快捷控制',

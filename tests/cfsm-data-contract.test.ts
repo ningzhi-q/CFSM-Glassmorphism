@@ -123,7 +123,7 @@ describe('首页窗口按探测目标分组（BUG-001 回归）', () => {
   it('柱状图按时间桶渲染，null 用独立的空洞样式而不是被过滤掉', () => {
     expect(serverCard).toContain('points.map((point, index)')
     expect(serverCard).toContain("className: typeof point.value === 'number' ? tone(point.value) : 'is-gap'")
-    expect(serverCard).toContain('probeSeriesFor(series, target)')
+    expect(serverCard).toContain("buildBars('latency', row.latency.points, latencyToneClass)")
     expect(stylesheet).toContain('.node-probe__bars .is-gap')
     expect(stylesheet).toContain('.node-probe__bars .is-empty')
   })
