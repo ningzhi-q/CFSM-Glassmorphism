@@ -116,6 +116,12 @@ export function serverMapLocation(server: GlassServer): {
   return region ? { ...region, city: null, source: 'country' } : null
 }
 
+/** 已翻译的属地与国家同名时只展示一次。 */
+export function locationTitle(locality: string, countryCode: string): string {
+  const country = countryName(countryCode)
+  return locality === country ? country : `${locality} · ${country}`
+}
+
 /** 只标注已提供的城市；国家中心坐标不能被当作城市或区县。 */
 export function serverCityText(server: GlassServer): string {
   const location = serverMapLocation(server)
@@ -124,7 +130,7 @@ export function serverCityText(server: GlassServer): string {
   const locality = location.subdivision || location.city
   if (!locality) return `城市未提供 · ${country}`
   const city = formatCityNameZh(locality, location.code, location)
-  return `${city || '城市译名待补充'} · ${country}`
+  return locationTitle(city || '城市译名待补充', location.code)
 }
 
 export type HealthTone = 'healthy' | 'warning' | 'critical' | 'unknown'

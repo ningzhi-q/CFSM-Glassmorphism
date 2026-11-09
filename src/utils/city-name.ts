@@ -10,6 +10,7 @@ const CITY_NAME_ZH_MAP: Record<string, string> = {
   'kampong loyang': '罗央',
   'sultanbeyli': '苏丹贝伊利',
   'tung chung': '东涌',
+  'tampines': '淡滨尼',
   'kwai chung': '葵涌',
   'cheung sha wan': '长沙湾',
   'kwun tong': '观塘',
