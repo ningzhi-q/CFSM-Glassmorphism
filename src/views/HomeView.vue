@@ -10,6 +10,7 @@ import EarthMap from '@/components/dashboard/EarthMap.vue'
 import MarkdownRenderer from '@/components/dashboard/MarkdownRenderer.vue'
 import OverviewCards from '@/components/dashboard/OverviewCards.vue'
 import ServerCard from '@/components/dashboard/ServerCard.vue'
+import RetainedServerGrid from '@/components/dashboard/RetainedServerGrid.vue'
 import ServerList from '@/components/dashboard/ServerList.vue'
 import {
   ALL_GROUPS,
@@ -179,13 +180,12 @@ const visibleServers = computed(() => sortServers(
   sort.value,
   theme.runtime.offlineNodesLast,
 ))
-// Large groups retain their mounted cards during quick filters. This avoids
-// rebuilding every tooltip and metric when returning from favourites to all.
-const groupServers = computed(() => filterServers(glassServers.value, '', selectedGroup.value))
+// Large dashboards keep one card tree across groups and quick filters. Hidden
+// cards are frozen by v-memo and receive the latest server when shown again.
 const mapRetainedServers = computed(() => filterServers(glassServers.value, query.value, selectedGroup.value))
-const retainCards = computed(() => groupServers.value.length > 30)
+const retainCards = computed(() => glassServers.value.length > 30)
 const renderedCardServers = computed(() => retainCards.value
-  ? sortServers(groupServers.value, sort.value, theme.runtime.offlineNodesLast)
+  ? sortServers(glassServers.value, sort.value, theme.runtime.offlineNodesLast)
   : visibleServers.value)
 const visibleServerKeys = computed(() => new Set(visibleServers.value.map(server => server.key)))
 /*
@@ -584,6 +584,23 @@ onUnmounted(() => realtime.stop())
               </button>
             </div>
 
+            <RetainedServerGrid
+              v-if="viewMode === 'card' && retainCards"
+              v-show="!hasNoMatches"
+              :servers="renderedCardServers"
+              :visible-keys="visibleServerKeys"
+              :favorite-keys="preferences.favorites"
+              :show-source="showSource"
+              :density="theme.runtime.nodeCardSize"
+              :price-visible="priceVisible"
+              :probe-display-mode="theme.runtime.probeDisplayMode"
+              :probe-targets="theme.runtime.probeTargets"
+              :probe-window-hours="theme.runtime.probeWindowHours"
+              :probe-now="probeNow.getTime()"
+              @open="openServer"
+              @probe="openProbe"
+              @toggle-favorite="preferences.toggleFavorite"
+            />
             <!--
               与 Komari 一致：卡片进场用 TransitionGroup 的过渡，只在首次渲染与卡片加入列表时播放；
               KeepAlive 重新插回页面时不会重播（CSS animation 会）。
@@ -591,7 +608,7 @@ onUnmounted(() => realtime.stop())
               新分组的网格重新挂载并按 appear 依次进场，旧卡片当帧消失，不走离场过渡。
             -->
             <TransitionGroup
-              v-if="viewMode === 'card'"
+              v-else-if="viewMode === 'card'"
               v-show="!hasNoMatches"
               :key="selectedGroup"
               :appear="cardTransition"

@@ -31,3 +31,7 @@ bun scripts/generate-city-gazetteer.mjs /absolute/path/cities1000.txt
 ## 2026-11-09：城市 / 地区与国家
 
 用户要求显示「葵涌 · 香港」「春川 · 韩国」「洛杉矶 · 美国」。地图统一采用此格式。香港仅返回 Hong Kong 时暂显示「香港 · 香港」，不会根据名称或坐标猜区县。扩展后端可自动补充 DB-IP city；仅返回行政地区时提供 subdivision，主题显示例如「九龙 · 香港」，并在提示中说明地区参考，原 city 和 Cloudflare 坐标仍保留。无城市则显示「城市未提供 · 国家」。
+
+## 2026-11-10：香港 Central 译名
+
+后端真实返回 `country: HK`、`city: Hong Kong`、`subdivision: Central`、`subdivision_source: ipapi-is`。展示层以 `HK:central` 精确映射为「中环 · 香港」，优先于通用名称表；其他国家的 Central 不使用该香港译名。原行政地区、城市、经纬度和来源保持不变，也没有建立 IP → 地名的手工配置。测试覆盖国家隔离和原始位置保留。此前香港 / 新加坡同名标题已去重，仅返回同名属地时显示一个国家名称。

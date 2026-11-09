@@ -212,3 +212,7 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 ## 2026-11-10：备用定位来源
 
 `city_source`、`subdivision_source` 允许 `db-ip` 或 `ipapi-is`；后者仅由配套后端在 DB-IP 明确限流时自动补查。adapter 保留独立的 subdivisionSource，未知来源或无效名称不进入展示。坐标 source 仍是 cloudflare-ip；REST、WS 和 API Base 归属不变。地图按实际名称来源展示署名与链接，主题没有直接请求定位服务。
+
+## 2026-11-10：全部节点性能
+
+没有新增端点或 wire 字段。REST / WS 的 unknown 校验和 API Base 归属不变；探测对象只在已验证的值变化时懒复制，窗口转换缓存以不可变输入身份为键。提示逐行展示和香港 Central 译名属于展示层，不查询外部位置或写回服务器。首页探测继续使用公开列表已有的采样，点击后沿用原 ECharts 弹窗。

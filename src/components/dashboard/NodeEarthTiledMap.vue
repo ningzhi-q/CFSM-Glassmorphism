@@ -116,7 +116,7 @@ function clusterLocationDescription(cluster: RegionCluster): string {
   return descriptions.join('；')
 }
 function clusterTooltip(cluster: RegionCluster): string {
-  const names = cluster.members.map((server) => `${server.name}（${server.online ? '在线' : '离线'}，${serverCityText(server)}）`).join('、')
+  const names = cluster.members.map((server) => `${server.name}（${server.online ? '在线' : '离线'}，${serverCityText(server)}）`).join('\n')
   return `${clusterTitle(cluster)} · ${cluster.onlineServers}/${cluster.servers} 在线\n${names}\n${clusterLocationDescription(cluster)}`
 }
 function openCluster(cluster: RegionCluster): void {
@@ -278,6 +278,7 @@ const visualClusterMarkers = computed(() => {
                   as="button"
                   :content="marker.tooltip"
                   class="map-cluster-trigger"
+                  content-class="map-cluster-tooltip"
                   :class="{ 'is-active': hoveredClusterId === marker.id || hoveredClusterId === marker.code, 'is-muted': props.selectedCountry && marker.code !== props.selectedCountry }"
                   type="button"
                   tabindex="0"

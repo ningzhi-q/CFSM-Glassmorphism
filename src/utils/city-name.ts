@@ -113,6 +113,8 @@ function normalizeCityName(city: string): string {
 
 const simplify = Converter({ from: 't', to: 'cn' })
 const upstreamNames = new Map(Object.entries(CITY_NAME_ZH_MAP).map(([alias, name]) => [normalizeCityName(alias), name]))
+// Administrative aliases are country-scoped: Central elsewhere is not Hong Kong's 中环.
+const countryNames = new Map([['HK:central', '中环']])
 type GazetteerRecord = CityGazetteerRecord
 let previousIndex = cityNames.value
 const formattedNames = new Map<string, string>()
@@ -132,7 +134,7 @@ export function formatCityNameZh(city: string | null | undefined, countryCode?: 
   const cached = formattedNames.get(key)
   if (cached !== undefined) return cached
 
-  let name = upstreamNames.get(alias) ?? ''
+  let name = countryNames.get(`${country}:${alias}`) ?? upstreamNames.get(alias) ?? ''
   if (!name && CJK_UNIFIED_IDEOGRAPH_REGEX.test(trimmed) && !/[a-z]/i.test(trimmed)) name = simplify(trimmed)
   if (!name && country) {
     const matches = cityNames.value.get(`${country}:${alias}`) ?? []

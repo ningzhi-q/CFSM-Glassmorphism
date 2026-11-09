@@ -430,3 +430,11 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 ## 2026-11-10：备用定位来源传递
 
 适配层验证 DB-IP / IPapi.is 来源，领域位置和地图快照保留 citySource、subdivisionSource。快照指纹包含地区来源，提供者变化会同步提示和署名。平面地图逐来源解释城市或地区参考，并只显示对应提供者链接；中文译名补充 Wan Chai（湾仔）。原始城市和 Cloudflare 坐标不变。
+
+## 2026-11-10：全部节点性能与逐行地图名单
+
+本轮修正上文第八轮的复用范围及 memo 实现：全站超过 30 台时，`RetainedServerGrid` 使用原生网格，跨分组、搜索和快捷筛选保留同一组卡片；小站继续使用原 `TransitionGroup`。Vue 的 `TransitionGroup` 会克隆子 VNode，使原 v-for memo 缓存拿不到已挂载的 el，原实现并未实际冻结隐藏卡片。独立网格让 memo 生效：顺序不变的普通指标更新不刷新隐藏卡片，重新显示时立即消费最新模型。密度、收藏、探测设置或排序变化仍按依赖正常刷新。列表视图保留现有实现。
+
+`mergeRealtimeSample` 只在探测值真实变化时复制 latency / packetLoss 对象；`glassmorphism-adapter` 用 WeakMap 复用不可变窗口转换和当前探测模型，标签缓存保留所属站点配置身份。`ServerCard` 缩小探测 computed 的依赖，CPU / 网速更新不重新创建全部探测柱和时间文本。`NodeProbePanel` 每条色带使用一个真实 reka-ui Tooltip，柱子仍完整绘制，指针委托和左右键选择真实采样，并把 Tooltip 锚点移动到对应柱子；仅格式化当前提示。`false` / `null` / `0` 保持不同语义，点击仍打开原 ECharts 弹窗。
+
+地图提示名单用换行分隔每台 VPS，长名单在提示文字内部滚动，箭头保持在滚动区域外。`AppTooltip` 继续使用 reka-ui 的 Trigger、Portal、Content 与碰撞处理。香港 `Central` 以国家限定名称映射显示为「中环」，不改原始城市、行政地区、来源或坐标，不套用于其他国家。没有新增请求、逐卡计时器、设置或整卡离屏占位。性能条件、响应式验收和限制见 [全部节点性能验收](all-nodes-performance.md)。

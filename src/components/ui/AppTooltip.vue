@@ -6,6 +6,7 @@ import {
   TooltipProvider,
   TooltipRoot,
   TooltipTrigger,
+  type TooltipTriggerProps,
 } from 'reka-ui'
 
 /**
@@ -29,27 +30,32 @@ withDefaults(defineProps<{
   content: string
   placement?: 'top' | 'bottom' | 'left' | 'right'
   as?: string
+  reference?: TooltipTriggerProps['reference']
+  contentClass?: string
 }>(), {
   placement: 'top',
   as: 'span',
+  reference: undefined,
+  contentClass: '',
 })
 </script>
 
 <template>
   <TooltipProvider :delay-duration="0">
     <TooltipRoot data-slot="tooltip">
-      <TooltipTrigger :as="as" data-slot="tooltip-trigger" class="app-tooltip" v-bind="$attrs">
+      <TooltipTrigger :as="as" :reference="reference" data-slot="tooltip-trigger" class="app-tooltip" v-bind="$attrs">
         <slot />
       </TooltipTrigger>
       <TooltipPortal>
         <TooltipContent
           data-slot="tooltip-content"
           class="app-tooltip__bubble"
+          :class="contentClass"
           :side="placement"
           :side-offset="6"
           :collision-padding="8"
         >
-          {{ content }}
+          <span class="app-tooltip__text">{{ content }}</span>
           <TooltipArrow class="app-tooltip__arrow" :width="10" :height="5" />
         </TooltipContent>
       </TooltipPortal>

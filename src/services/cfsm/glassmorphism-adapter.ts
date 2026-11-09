@@ -3,6 +3,7 @@ import type {
   LatencyWindowSample,
   ProbeTarget,
   ProbeValue,
+  ProbeLabels,
   SiteConfig,
 } from '@/types/cfsm'
 import { DEFAULT_PROBE_LABELS, PROBE_TARGETS } from '@/constants/probes'
@@ -11,6 +12,7 @@ import type {
   GlassLatencySample,
   GlassResourceMetric,
   GlassServer,
+  GlassLatencyMetric,
 } from '@/types/glassmorphism'
 
 function finiteNonNegative(value: number | null): number | null {
@@ -22,9 +24,12 @@ function probeMetric(value: ProbeValue): ProbeValue {
   return finiteNonNegative(value) ?? false
 }
 
-function probeTargetKeys(): readonly ProbeTarget[] {
-  return PROBE_TARGETS
-}
+const windowCache = new WeakMap<readonly LatencyWindowSample[], Partial<Record<ProbeTarget, GlassLatencySample[]>>>()
+const latestCache = new WeakMap<CfsmServer['latency'], {
+  packetLoss: CfsmServer['packetLoss']
+  labels: ProbeLabels
+  value: GlassLatencyMetric[]
+}>()
 
 /*
  * 把 `/api/servers` 的窗口按探测目标拆成等长时间序列。
@@ -36,6 +41,8 @@ function probeTargetKeys(): readonly ProbeTarget[] {
 function probeSeries(
   window: readonly LatencyWindowSample[],
 ): Partial<Record<ProbeTarget, GlassLatencySample[]>> {
+  const cached = windowCache.get(window)
+  if (cached) return cached
   const series: Partial<Record<ProbeTarget, GlassLatencySample[]>> = {}
   for (const target of PROBE_TARGETS) {
     const points = window.map((sample) => ({
@@ -45,7 +52,23 @@ function probeSeries(
     if (points.length === 0 || points.every((point) => point.value === false)) continue
     series[target] = points
   }
+  windowCache.set(window, series)
   return series
+}
+
+/** Inputs are immutable validated snapshots; weak caches release replaced windows. */
+function latestProbes(server: CfsmServer, labels: ProbeLabels): GlassLatencyMetric[] {
+  const cached = latestCache.get(server.latency)
+  if (cached?.packetLoss === server.packetLoss && cached.labels === labels) return cached.value
+  const value = PROBE_TARGETS.flatMap((target) => {
+    const latency = probeMetric(server.latency[target])
+    const packetLossValue = probeMetric(server.packetLoss[target])
+    const packetLoss = typeof packetLossValue === 'number' ? Math.min(packetLossValue, 100) : packetLossValue
+    if (latency === false && packetLoss === false) return []
+    return [{ target, label: labels[target], latency, packetLoss }]
+  })
+  latestCache.set(server.latency, { packetLoss: server.packetLoss, labels, value })
+  return value
 }
 function boundedPercentage(value: number | null): number | null {
   const metric = finiteNonNegative(value)
@@ -116,20 +139,7 @@ export function toGlassServer(server: CfsmServer, config: SiteConfig | null): Gl
      * 只有延迟与丢包都为 `false`（未配置）时才整条略过；`null`（超时）要保留，
      * 否则会把「探测超时」误报成「没有这个探测点」。
      */
-    latency: probeTargetKeys().flatMap((target) => {
-      const latency = probeMetric(server.latency[target])
-      const packetLossValue = probeMetric(server.packetLoss[target])
-      const packetLoss = typeof packetLossValue === 'number'
-        ? Math.min(packetLossValue, 100)
-        : packetLossValue
-      if (latency === false && packetLoss === false) return []
-      return [{
-        target,
-        label: labels[target],
-        latency,
-        packetLoss,
-      }]
-    }),
+    latency: latestProbes(server, labels),
     history: {
       latencySeries: probeSeries(server.latencyWindow),
       packetLossSeries: probeSeries(server.packetLossWindow),
