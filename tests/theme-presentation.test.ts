@@ -52,8 +52,18 @@ describe('round 7 theme presentation contracts', () => {
     const cards = buildDetailCards(server, settings)
     expect(cards.find((card) => card.key === 'remainingTime')).toMatchObject({ value: '∞ 永久', tone: 'muted' })
     expect(cards.find((card) => card.key === 'monthlyCost')).toMatchObject({ value: '¥0.00', unit: '/ 月' })
-    expect(cards.find((card) => card.key === 'remainingValue')).toMatchObject({ value: '¥99.00' })
+    expect(cards.find((card) => card.key === 'remainingValue')).toBeUndefined()
     expect(cards.find((card) => card.key === 'nodePrice')).toMatchObject({ value: '¥99', unit: '/ 一次性' })
+  })
+  it.each([
+    ['one_time', '2027-09-17'], ['one_time', null], ['month', 'never'], ['year', 'never'],
+  ])('详情页对 %s / %s 隐藏剩余价值，保留购买价格', (billing_cycle, expire_date) => {
+    const server = normalizeServer({ id: 'node', price: '99', currency: '¥', billing_cycle, expire_date }, source)
+    const settings = cloneThemeSettings(DEFAULT_THEME_SETTINGS)
+    settings.detailMetricCardPreset = '自定义'
+    settings.detailMetricCardKeys = 'remainingValue\nnodePrice'
+    expect(buildDetailCards(server, settings).map((card) => card.key)).toEqual(['nodePrice'])
+    expect(remainingValue(server)).toBeNull()
   })
   it('resolves presets and custom keys in configured order while dropping unsupported keys', () => {
     const settings = cloneThemeSettings(DEFAULT_THEME_SETTINGS)

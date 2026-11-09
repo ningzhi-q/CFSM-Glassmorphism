@@ -11,7 +11,7 @@ import EARTH_SPECULAR_MAP from '@/assets/earth/earth-water.png'
 import { useServerGeoClusters } from '@/composables/useServerGeoClusters'
 import { flagUrl, hideMissingFlag } from '@/utils/flags'
 import type { GlassServer } from '@/types/glassmorphism'
-import { serverMapLocation } from '@/domain/advanced-tools'
+import { serverCityText, serverMapLocation } from '@/domain/advanced-tools'
 import { layoutMapFlags, type MapMarkerAnchor } from '@/utils/map-marker-layout'
 
 /**
@@ -112,7 +112,7 @@ function clusterLocationDescription(cluster: RegionCluster): string {
   return descriptions.join('；')
 }
 function clusterTooltip(cluster: RegionCluster): string {
-  const names = cluster.members.map((server) => `${server.name}（${server.online ? '在线' : '离线'}）`).join('、')
+  const names = cluster.members.map((server) => `${server.name}（${server.online ? '在线' : '离线'}，${serverCityText(server)}）`).join('、')
   return `${clusterTitle(cluster)} · ${cluster.onlineServers}/${cluster.servers} 在线\n${names}\n${clusterLocationDescription(cluster)}`
 }
 function openCluster(cluster: RegionCluster): void {
@@ -352,6 +352,7 @@ const visualClusterMarkers = computed(() => {
           <span :class="server.online ? 'member-online' : 'member-offline'">{{ server.online ? '在线' : '离线' }}</span>
           <strong>{{ server.name }}</strong>
           <span>{{ server.group || '未分组' }}</span>
+          <span class="member-city">{{ serverCityText(server) }}</span>
           <span>查看详情 →</span>
         </button>
       </div>

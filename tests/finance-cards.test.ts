@@ -112,6 +112,16 @@ describe('总览财务卡', () => {
     expect(cards.remainingValue?.value).toBe('$13.00')
   })
 
+  it('一次性或永久不增加剩余价值合计，购买总价值仍保留', () => {
+    const cards = financeCards([...servers,
+      glass({ key: 'one', price: '99', currency: '¥', billingCycle: 'one_time', expireDate: 'never' }),
+      glass({ key: 'permanent', price: '20', currency: '¥', billingCycle: 'month', expireDate: 'never' }),
+    ])
+    expect(cards.remainingValue?.value).toBe('¥130.00')
+    expect(cards.remainingValue?.hint).toContain('总价值\n¥299.00')
+    expect(cards.monthlyCost?.value).toBe('¥126.58')
+  })
+
   it('汇率载入中：显示「-」与「载入中」，不拿参考表凑数', () => {
     const cards = financeCards(servers, { view: { ...EMPTY_RATE_VIEW, pending: true } })
     expect(cards.remainingValue).toMatchObject({ value: '-', unit: '载入中' })

@@ -116,15 +116,19 @@ describe('价格、周期与到期', () => {
 describe('原币月均与剩余价值（固定样本）', () => {
   const sampleFiveYear = { price: '30.00', billingCycle: 'five_years', expireDate: '2030-09-17' }
 
-  it('一次性无月均支出，永久与有限到期分别计算剩余价值', () => {
+  it('一次性无月均支出，无论到期状态都不适用剩余价值', () => {
     const purchase = { price: '99', billingCycle: 'one_time', expireDate: 'never' }
     expect(monthlyCost(purchase)).toEqual({ status: 'ok', amount: 0 })
-    expect(remainingValueOf(purchase, NOW)).toEqual({ status: 'ok', amount: 99 })
-    expect(remainingValueOf({ ...purchase, expireDate: '2026-09-18' }, NOW)).toEqual({ status: 'ok', amount: 99 })
-    expect(remainingValueOf({ ...purchase, expireDate: '2026-09-16' }, NOW)).toEqual({ status: 'ok', amount: 0 })
-    expect(remainingValueOf({ ...purchase, expireDate: '' }, NOW)).toEqual({ status: 'unavailable', reason: 'expiry-missing' })
-    expect(remainingValueOf({ ...purchase, expireDate: 'invalid' }, NOW)).toEqual({ status: 'unavailable', reason: 'expiry-invalid' })
+    for (const expireDate of ['never', '2026-09-18', '2026-09-16', '', 'invalid', null]) {
+      expect(remainingValueOf({ ...purchase, expireDate }, NOW)).toEqual({ status: 'not-applicable' })
+    }
     expect(monthlyCost({ ...purchase, billingCycle: 'month' })).toEqual({ status: 'ok', amount: 99 })
+  })
+
+  it.each(['month', 'year', 'unknown', null])('永久到期不适用剩余价值，即使周期为 %s', (billingCycle) => {
+    for (const price of ['99', '0', '-1', '', 'invalid', null]) {
+      expect(remainingValueOf({ price, billingCycle, expireDate: ' never ' }, NOW)).toEqual({ status: 'not-applicable' })
+    }
   })
 
   it('虚构样本 €30.00 / 五年：月均 0.4932，剩余价值 24.0164', () => {
@@ -279,6 +283,33 @@ describe('汇总与明细', () => {
     expect(describeSkipped(summary.remaining)).toEqual(['1 台未设置到期时间，未计入', '1 台币种无法识别，未计入'])
     // 节点 B 封顶为原价 10€ = 80 CNY；节点 A 还剩 15 天 = 5$ = 50 CNY。
     expect(summary.remaining.amount).toBeCloseTo(80 + 50, 6)
+  })
+
+  it('一次性或永久不计入剩余价值，不影响购买总价及原有月均', () => {
+    const purchases = [
+      node({ key: 'one-time', price: '99', currency: '¥', billingCycle: 'one_time', expireDate: 'never' }),
+      node({ key: 'finite', price: '40', currency: '¥', billingCycle: 'one_time', expireDate: '2026-10-02' }),
+      node({ key: 'permanent', price: '20', currency: '¥', billingCycle: 'month', expireDate: 'never' }),
+    ]
+    const summary = summarizeFinance(purchases, options)
+    expect(summary.rows.map((row) => row.remaining)).toEqual(purchases.map(() => ({ status: 'not-applicable' })))
+    expect(summary.remaining).toEqual({ amount: 0, counted: 0, skipped: {}, pending: false })
+    expect(describeSkipped(summary.remaining)).toEqual([])
+    expect(summary.totalValue).toMatchObject({ amount: 159, counted: 3, skipped: {} })
+    expect(summary.monthly).toMatchObject({ amount: 20, counted: 3 })
+    const mixed = summarizeFinance([...nodes, ...purchases], options)
+    expect(mixed.remaining).toEqual(summarizeFinance(nodes, options).remaining)
+  })
+
+  it('不适用剩余价值的外币节点不等待该项汇率，也不报缺失币种或日期', () => {
+    const summary = summarizeFinance([
+      node({ price: '99', currency: '$', billingCycle: 'one_time', expireDate: '' }),
+      node({ price: '99', currency: 'kr', billingCycle: 'month', expireDate: 'never' }),
+    ], { ...options, view: { ...EMPTY_RATE_VIEW, pending: true } })
+    expect(summary.rows.every((row) => row.remaining.status === 'not-applicable')).toBe(true)
+    expect(summary.remaining).toEqual({ amount: 0, counted: 0, skipped: {}, pending: false })
+    expect(summary.totalValue.pending).toBe(true)
+    expect(summary.totalValue.skipped).toEqual({ 'currency-ambiguous': 1 })
   })
 
   it('价格无法识别的节点不算免费、不按 0 计入，并在说明里交代；未填写价格不逐条提示', () => {

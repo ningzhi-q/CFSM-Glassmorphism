@@ -9,7 +9,7 @@ import { decodeCityGazetteer, decodeCityAsset, loadCityNames } from '@/services/
 const rawRecords: unknown = JSON.parse(gunzipSync(readFileSync('src/assets/city-gazetteer.json.gz')).toString())
 const CITY_GAZETTEER = decodeCityGazetteer(rawRecords)
 installCityGazetteer(CITY_GAZETTEER)
-import { buildEarthPoints } from '@/domain/advanced-tools'
+import { buildEarthPoints, serverCityText } from '@/domain/advanced-tools'
 import { filterServers } from '@/domain/dashboard'
 import { apiSource } from '@/services/cfsm/config'
 import { normalizeServer, toGlassServer } from '@/services/cfsm'
@@ -21,6 +21,17 @@ function node(city: string) {
 }
 
 describe('simplified Chinese city presentation', () => {
+  it('明确标注真实香港城市，不根据坐标猜区县，不以国家中心代替城市', () => {
+    const source = apiSource('https://monitor.example')
+    const hongKong = toGlassServer(normalizeServer({ id: 'hk', region: 'HK', location: {
+      latitude: 22.27832, longitude: 114.17469, country: 'HK', city: 'Hong Kong', source: 'cloudflare-ip', observed_at: 1794225464599,
+    } }, source), null)
+    expect(serverCityText(hongKong)).toBe('城市：香港')
+    expect(serverCityText({ ...hongKong, location: undefined })).toBe('城市：未提供')
+    expect(serverCityText(node('Iola'))).toBe('城市：艾奥拉')
+    expect(serverCityText(node('Unlisted Test City'))).toBe('城市：译名待补充')
+    expect(hongKong.location?.city).toBe('Hong Kong')
+  })
   it.each([
     ['Iola', 'US', '艾奥拉'], ['Sultanbeyli', 'TR', '苏丹贝伊利'], ['Tung Chung', 'HK', '东涌'],
     ['Kampong Loyang', 'SG', '罗央'], ['Chengdu', 'CN', '成都'], ['Jeddah', 'SA', '吉达'],

@@ -72,6 +72,7 @@ function summaryNotes(total: FinanceTotal): string[] {
 }
 
 function amountText(value: RowAmount, freeText: string): string {
+  if (value.status === 'not-applicable') return ''
   if (value.status === 'free') return freeText
   if (value.status === 'ok') return formatFinanceAmount(value.amount, target.value)
   if (value.status === 'pending') return '载入中'

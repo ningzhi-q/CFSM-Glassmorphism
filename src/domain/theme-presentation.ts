@@ -261,7 +261,7 @@ export function daysUntilExpiry(value: string | null, now = Date.now()): number 
 /**
  * 按 CFSM 官方计费周期计算节点当前剩余价值（原币）。首页节点卡与上游一样显示原币，
  * 计算本身交给 `domain/finance.ts`，与详情页、明细弹窗共用一套口径。
- * 免费、未设置价格、未知周期、缺失或无效到期都返回 null。
+ * 一次性、永久、免费、未设置价格、未知周期、缺失或无效到期都返回 null。
  */
 export interface BillableServer {
   price: string | null
@@ -853,6 +853,7 @@ function monthlyAverageCost(server: CfsmServer): string | null {
   if (result.status === 'free') return formatPrice(server.price, server.currency, null)
   // 未填价格（适配层里就是 null）或价格无法识别时整卡不显示，与「节点价格」「剩余价值」一致。
   if (result.status === 'unavailable') return result.reason === 'cycle-unknown' ? '不适用' : null
+  if (result.status === 'not-applicable') return null
   const monthly = result.amount
   const digits = Math.abs(monthly) >= 100 ? 0 : 2
   return `${server.currency?.trim() ?? ''}${new Intl.NumberFormat('zh-CN', { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(monthly)} / 月`
@@ -880,7 +881,7 @@ function detailRemainingValue(server: CfsmServer, now: number, finance: DetailFi
   if (server.price === null) return null
   const result = remainingValueOf(server, now)
   if (result.status === 'free') return { value: '无', hint: '' }
-  if (result.status === 'unavailable') return null
+  if (result.status === 'unavailable' || result.status === 'not-applicable') return null
   const original = formatCurrencyValue(result.amount, server.currency)
   const converted = convertAmount(result.amount, resolveSourceCurrency(server.currency), finance.target, finance.view)
   if (converted.status !== 'ok') {
