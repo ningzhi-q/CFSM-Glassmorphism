@@ -11,7 +11,7 @@ import EARTH_SPECULAR_MAP from '@/assets/earth/earth-water.png'
 import { useServerGeoClusters } from '@/composables/useServerGeoClusters'
 import { flagUrl, hideMissingFlag } from '@/utils/flags'
 import type { GlassServer } from '@/types/glassmorphism'
-import { serverCityText, serverMapLocation } from '@/domain/advanced-tools'
+import { locationTitle, serverCityText, serverMapLocation } from '@/domain/advanced-tools'
 import { layoutMapFlags, type MapMarkerAnchor } from '@/utils/map-marker-layout'
 
 /**
@@ -100,7 +100,7 @@ watch(regionClusters, () => {
 })
 function clusterTitle(cluster: RegionCluster): string {
   const country = countryName(cluster.code)
-  return cluster.city ? `${cluster.label} · ${country}` : country
+  return cluster.city ? locationTitle(cluster.label, cluster.code) : country
 }
 function clusterLocationDescription(cluster: RegionCluster): string {
   const sources = new Set(cluster.members.map(server => serverMapLocation(server)?.source))
@@ -359,7 +359,6 @@ const visualClusterMarkers = computed(() => {
           <span :class="server.online ? 'member-online' : 'member-offline'">{{ server.online ? '在线' : '离线' }}</span>
           <strong>{{ server.name }}</strong>
           <span>{{ server.group || '未分组' }}</span>
-          <span class="member-city">{{ serverCityText(server) }}</span>
           <span>查看详情 →</span>
         </button>
       </div>

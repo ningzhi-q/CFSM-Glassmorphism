@@ -421,3 +421,7 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 `useServerGeoClusters` 比较节点身份、名称、分组、在线状态、region、ASN、位置及来源字段；仅 CPU/流量/探测/观测时间变化时复用位置快照，避免重新聚合与地名翻译。快照成员只用于地图元数据，平面地图点击详情按 key 从当前 servers 找最新节点。位置、成员增删或在线状态变化仍立即刷新，异步地名索引加载仍触发中文名称更新。
 
 地图图例采用三行 grid：标题、按钮、可滚动列表，列表独立滚动；桌面和手机保留原高度策略。列表共用一个毛玻璃层及已缓存的提示文本，减少全节点刷新时的绘制和转换开销。`serverCityText` 和 `buildEarthPoints` 使用已验证的 `subdivision || city` 显示中文属地；原始 city 与坐标不变，弹窗明确地区参考和坐标来源。详见 [本轮验收](map-location-refinement.md)。
+
+## 2026-11-10：属地文字去重
+
+领域函数 `locationTitle` 合并已翻译的同名属地与国家；`serverCityText`、平面地图聚类标题、城市列表及提示共用这一规则。弹窗成员行删除属地项，保留在线状态、节点名、分组和详情入口。补充 Tampines 的简体译名「淡滨尼」，消费后端 subdivision；没有组件请求或位置推断。
