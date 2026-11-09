@@ -114,6 +114,14 @@ export function serverMapLocation(server: GlassServer): {
   return region ? { ...region, city: null, source: 'country' } : null
 }
 
+/** 只标注已提供的城市；国家中心坐标不能被当作城市或区县。 */
+export function serverCityText(server: GlassServer): string {
+  const location = serverMapLocation(server)
+  if (!location?.city) return '城市：未提供'
+  const city = formatCityNameZh(location.city, location.code, location)
+  return city ? `城市：${city}` : '城市：译名待补充'
+}
+
 export type HealthTone = 'healthy' | 'warning' | 'critical' | 'unknown'
 
 export interface HealthIssue {

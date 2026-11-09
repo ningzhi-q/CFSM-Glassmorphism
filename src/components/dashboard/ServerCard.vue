@@ -7,6 +7,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import AppProgressThin from '@/components/ui/AppProgressThin.vue'
 import AppTooltip from '@/components/ui/AppTooltip.vue'
 import { loadCapacityPercent } from '@/domain/node-metrics'
+import { isRemainingValueApplicable } from '@/domain/finance'
 import { resolveRegionCoordinates } from '@/domain/advanced-tools'
 import { probeDisplayRows, type ProbeDisplayMetric } from '@/domain/probe-display'
 import {
@@ -138,7 +139,7 @@ const expiryFullText = computed(() => {
   return info.text || `${info.prefix} ${info.value} ${info.unit}`
 })
 const remainingValueText = computed(() => {
-  if (!props.priceVisible || !props.server.showPrice) return ''
+  if (!props.priceVisible || !props.server.showPrice || !isRemainingValueApplicable(props.server)) return ''
   const rawPrice = props.server.price?.trim()
   if (!rawPrice) return ''
   const price = Number(rawPrice)

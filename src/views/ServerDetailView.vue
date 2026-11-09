@@ -14,7 +14,7 @@ import type { IconName } from '@/constants/icons'
 import { resolveRegionCoordinates } from '@/domain/advanced-tools'
 import { issueCopy } from '@/domain/issue-copy'
 import { resolveNodeProvider } from '@/domain/provider'
-import { needsExchangeRate } from '@/domain/finance'
+import { isRemainingValueApplicable, needsExchangeRate } from '@/domain/finance'
 import { buildDetailCards, parseTrafficLimitBytes, resolveDetailCardKeys, trafficUsageBytes } from '@/domain/theme-presentation'
 import { hasMultipleSources, serverDetailLocation } from '@/router/links'
 import { getCpuBenchmarkRating, getPassMarkCpuLookupUrl } from '@/utils/cpu-benchmark'
@@ -190,6 +190,7 @@ watch(
   () => Boolean(
     server.value
     && showPrice.value
+    && isRemainingValueApplicable(server.value)
     && resolveDetailCardKeys(theme.runtime).includes('remainingValue')
     && needsExchangeRate(server.value.currency, finance.preferences.displayCurrency),
   ),

@@ -244,6 +244,7 @@ export type UnavailableReason =
   | 'expiry-missing' | 'expiry-invalid'
 
 export type OriginalAmount =
+  | { readonly status: 'not-applicable' }
   | { readonly status: 'free' }
   | { readonly status: 'ok', readonly amount: number }
   | { readonly status: 'unavailable', readonly reason: UnavailableReason }
@@ -256,6 +257,11 @@ export interface BillingInput {
   price: string | null
   billingCycle: string | null
   expireDate: string | null
+}
+
+/** 一次性或永久条目不展示、也不计入剩余价值；购买价与月均口径独立。 */
+export function isRemainingValueApplicable(input: Pick<BillingInput, 'billingCycle' | 'expireDate'>): boolean {
+  return parseBillingCycle(input.billingCycle) !== 'one_time' && !isPermanentExpiration(input.expireDate)
 }
 
 function priceUnavailable(price: BillingPrice): OriginalAmount | null {
@@ -285,6 +291,7 @@ export function monthlyCost(input: BillingInput): OriginalAmount {
  * 到期日沿用本主题的 UTC 正午解析（`parseCfsmDate`）。
  */
 export function remainingValueOf(input: BillingInput, now: number): OriginalAmount {
+  if (!isRemainingValueApplicable(input)) return { status: 'not-applicable' }
   const price = parseBillingPrice(input.price)
   const early = priceUnavailable(price)
   if (early) return early
@@ -293,14 +300,13 @@ export function remainingValueOf(input: BillingInput, now: number): OriginalAmou
   const expiry = parseBillingExpiry(input.expireDate)
   if (expiry.status === 'missing') return { status: 'unavailable', reason: 'expiry-missing' }
   if (expiry.status === 'invalid') return { status: 'unavailable', reason: 'expiry-invalid' }
-  if (expiry.status === 'permanent') return { status: 'ok', amount: price.amount }
+  if (expiry.status === 'permanent') return { status: 'not-applicable' }
   const difference = expiry.at - now
   if (difference <= 0) return { status: 'ok', amount: 0 }
   if (difference / (DAY_MS * 365) > LONG_TERM_YEARS) return { status: 'ok', amount: price.amount }
 
   const cycle = parseBillingCycle(input.billingCycle)
   if (!cycle) return { status: 'unavailable', reason: 'cycle-unknown' }
-  if (cycle === 'one_time') return { status: 'ok', amount: price.amount }
   return {
     status: 'ok',
     amount: Math.min(price.amount, price.amount * difference / (BILLING_CYCLE_DAYS[cycle] * DAY_MS)),
@@ -447,6 +453,7 @@ export const SKIP_REASONS = [
 export type SkipReason = (typeof SKIP_REASONS)[number]
 
 export type RowAmount =
+  | { readonly status: 'not-applicable' }
   | { readonly status: 'free' }
   | { readonly status: 'ok', readonly amount: number, readonly sources: readonly RateSource[] }
   | { readonly status: 'pending' }
@@ -493,6 +500,7 @@ export interface FinanceSummaryOptions {
 }
 
 function toRowAmount(original: OriginalAmount, source: SourceCurrency, options: FinanceSummaryOptions): RowAmount {
+  if (original.status === 'not-applicable') return { status: 'not-applicable' }
   if (original.status === 'free') return { status: 'free' }
   if (original.status === 'unavailable') return { status: 'none', reason: original.reason }
   const converted = convertAmount(original.amount, source, options.target, options.view)
