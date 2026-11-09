@@ -207,3 +207,8 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 `location` 可选扩展为 `city_source:"db-ip"` 或 `subdivision:string` + `subdivision_source:"db-ip"`。adapter 校验来源、字符串长度及控制字符；无效扩展忽略，仍保留原城市和坐标。`source:"cloudflare-ip"` 始终表示坐标来源，不能因为城市补充而改成 DB-IP 坐标。仅返回地区时，原始 `city` 保留，地区单独保存。REST/WS 使用同一边界；旧后端没有扩展字段也兼容。主题不查询 IP 服务、不新增接口或管理写入。成员文字统一为「城市或地区 · 国家」，国家中心明确提示「城市未提供 · 国家」。
 
 2026-11-10 补充：同名 city/country 中文名称只显示一次；地图弹窗成员行不再重复标题属地。新加坡提供者返回的具体区域仍使用现有 subdivision 契约，原始 city/坐标不变，主题 API 不变。
+
+
+## 2026-11-10：备用定位来源
+
+`city_source`、`subdivision_source` 允许 `db-ip` 或 `ipapi-is`；后者仅由配套后端在 DB-IP 明确限流时自动补查。adapter 保留独立的 subdivisionSource，未知来源或无效名称不进入展示。坐标 source 仍是 cloudflare-ip；REST、WS 和 API Base 归属不变。地图按实际名称来源展示署名与链接，主题没有直接请求定位服务。

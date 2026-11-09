@@ -32,9 +32,11 @@ function reportedLocationValue(value: unknown): ReportedLocation | null {
     || typeof country !== 'string' || !/^[A-Z]{2}$/.test(country) || ['XX', 'T1'].includes(country)
     || typeof observedAt !== 'number' || !Number.isSafeInteger(observedAt) || observedAt <= 0
     || (city !== null && city !== undefined && (typeof city !== 'string' || city.length > 160 || [...city].some(character => character.charCodeAt(0) < 32)))) return null
-  const subdivision = value.subdivision_source === 'db-ip' && typeof value.subdivision === 'string' && value.subdivision.trim()
+  const citySource = value.city_source === 'db-ip' || value.city_source === 'ipapi-is' ? value.city_source : null
+  const subdivisionSource = value.subdivision_source === 'db-ip' || value.subdivision_source === 'ipapi-is' ? value.subdivision_source : null
+  const subdivision = subdivisionSource && typeof value.subdivision === 'string' && value.subdivision.trim()
     && value.subdivision.length <= 160 && ![...value.subdivision].some(character => character.charCodeAt(0) < 32) ? value.subdivision.trim() : null
-  return { latitude, longitude, countryCode: country, city: typeof city === 'string' ? city.trim() || null : null, source: 'cloudflare-ip', observedAt, ...(value.city_source === 'db-ip' ? { citySource: 'db-ip' } : {}), ...(subdivision ? { subdivision } : {}) }
+  return { latitude, longitude, countryCode: country, city: typeof city === 'string' ? city.trim() || null : null, source: 'cloudflare-ip', observedAt, ...(citySource ? { citySource } : {}), ...(subdivision && subdivisionSource ? { subdivision, subdivisionSource } : {}) }
 }
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000

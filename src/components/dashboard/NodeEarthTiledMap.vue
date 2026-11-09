@@ -109,8 +109,10 @@ function clusterLocationDescription(cluster: RegionCluster): string {
   if (sources.has('legacy-ip')) descriptions.push('旧站 IP 属地参考，不代表实时或物理位置')
   if (sources.has('operator')) descriptions.push('运营者提供的位置')
   if (sources.has('country')) descriptions.push('国家/地区中心参考位置')
-  if (cluster.members.some(server => server.location?.citySource === 'db-ip')) descriptions.push('城市名称由 DB-IP 补充，坐标仍为 Cloudflare IP 属地参考')
-  if (cluster.members.some(server => server.location?.subdivision)) descriptions.push('地区名称由 DB-IP 补充，不代表已精确到城市或机房；坐标仍为 Cloudflare IP 属地参考')
+  for (const [source, name] of [['db-ip', 'DB-IP'], ['ipapi-is', 'IPapi.is']]) {
+    if (cluster.members.some(server => server.location?.citySource === source)) descriptions.push(`城市名称由 ${name} 补充，坐标仍为 Cloudflare IP 属地参考`)
+    if (cluster.members.some(server => server.location?.subdivisionSource === source)) descriptions.push(`地区名称由 ${name} 补充，不代表已精确到城市或机房；坐标仍为 Cloudflare IP 属地参考`)
+  }
   return descriptions.join('；')
 }
 function clusterTooltip(cluster: RegionCluster): string {
@@ -362,7 +364,8 @@ const visualClusterMarkers = computed(() => {
           <span>查看详情 →</span>
         </button>
       </div>
-      <a v-if="selectedCluster?.members.some(server => server.location?.citySource === 'db-ip' || server.location?.subdivision)" href="https://db-ip.com" target="_blank" rel="noopener noreferrer">属地数据：DB-IP</a>
+      <a v-if="selectedCluster?.members.some(server => server.location?.citySource === 'db-ip' || server.location?.subdivisionSource === 'db-ip')" href="https://db-ip.com" target="_blank" rel="noopener noreferrer">属地数据：DB-IP</a>
+      <a v-if="selectedCluster?.members.some(server => server.location?.citySource === 'ipapi-is' || server.location?.subdivisionSource === 'ipapi-is')" href="https://ipapi.is" target="_blank" rel="noopener noreferrer">属地数据：IPapi.is</a>
     </AppDialog>
   </div>
 </template>

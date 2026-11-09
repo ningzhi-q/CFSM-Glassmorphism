@@ -63,6 +63,15 @@ describe('simplified Chinese city presentation', () => {
     expect(unknown.reportedLocation?.subdivision).toBeUndefined()
     expect(unknown.reportedLocation?.citySource).toBeUndefined()
   })
+  it('保留备用服务的地区来源，未知来源不进入展示', () => {
+    const wire = { latitude: 22.27832, longitude: 114.17469, country: 'HK', city: 'Hong Kong', source: 'cloudflare-ip', observed_at: 1794225464599 }
+    const server = toGlassServer(normalizeServer({ id: 'backup-district', location: { ...wire, subdivision: 'Wan Chai', subdivision_source: 'ipapi-is' } }, apiSource('https://monitor.example')), null)
+    expect(server.location).toMatchObject({ latitude: wire.latitude, longitude: wire.longitude, city: wire.city, source: wire.source, countryCode: 'HK', subdivision: 'Wan Chai', subdivisionSource: 'ipapi-is' })
+    expect(serverCityText(server)).toBe('湾仔 · 香港')
+    const unknown = normalizeServer({ id: 'unknown-backup', location: { ...wire, subdivision: 'Wan Chai', subdivision_source: 'unknown' } }, apiSource('https://monitor.example'))
+    expect(unknown.reportedLocation?.subdivisionSource).toBeUndefined()
+    expect(unknown.reportedLocation?.subdivision).toBeUndefined()
+  })
   it.each([
     ['Iola', 'US', '艾奥拉'], ['Sultanbeyli', 'TR', '苏丹贝伊利'], ['Tung Chung', 'HK', '东涌'],
     ['Kampong Loyang', 'SG', '罗央'], ['Chengdu', 'CN', '成都'], ['Jeddah', 'SA', '吉达'],

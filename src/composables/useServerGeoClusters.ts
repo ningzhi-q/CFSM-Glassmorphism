@@ -41,7 +41,7 @@ export function useServerGeoClusters(source: MaybeRefOrGetter<readonly GlassServ
       server.key, server.name, server.group, server.online, server.region, server.providerTags.asn,
       server.location?.latitude, server.location?.longitude, server.location?.countryCode,
       server.location?.city, server.location?.source, server.location?.citySource,
-      server.location?.subdivision,
+      server.location?.subdivision, server.location?.subdivisionSource,
     ]))
     return previous?.fingerprint === fingerprint ? previous : { fingerprint, servers }
   })
