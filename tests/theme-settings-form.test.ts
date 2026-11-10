@@ -84,7 +84,7 @@ describe('设置页字段注册表与上游清单一致', () => {
 
   it('保留上游字段顺序，用户新增排序字段单独核验', () => {
     for (const [index, group] of UPSTREAM_GROUPS.entries()) {
-      expect(THEME_SETTINGS_FORM[index]?.fields.filter(field => !['groupOrder', 'probeDisplayMode', 'probeTargets', 'probeWindowHours'].includes(field.key)).map((field) => field.key)).toEqual(group.keys)
+      expect(THEME_SETTINGS_FORM[index]?.fields.filter(field => !['groupOrder', 'probeDisplayMode', 'probeTargets', 'probeWindowHours', 'nodeCardInfoFields'].includes(field.key)).map((field) => field.key)).toEqual(group.keys)
     }
   })
 

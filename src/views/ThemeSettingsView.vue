@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useWindowScroll } from '@vueuse/core'
+import { NODE_CARD_INFO_FIELDS, parseNodeCardInfoFields, type NodeCardInfoKey } from '@/domain/node-card-info'
 import AppHeader from '@/components/dashboard/AppHeader.vue'
 import ProbeTargetOrder from '@/components/dashboard/ProbeTargetOrder.vue'
 import { DEFAULT_PROBE_LABELS } from '@/constants/probes'
@@ -18,6 +20,8 @@ import { message } from '@/utils/message'
 import { bootstrapKey } from '@/domain/bootstrap'
 import { injectedSiteTitleKey, injectedTitleForPrimary, resolveSiteTitle } from '@/domain/site-title'
 import { configReady } from '@/domain/config-readiness'
+
+const { y: scrollY } = useWindowScroll()
 
 /*
  * Komari 自己没有设置页：48 项设置写在 `komari-theme.json` 的 managed configuration 里，
@@ -157,6 +161,14 @@ function onSwitch(key: keyof ThemeSettings, event: Event): void {
   if (target instanceof HTMLInputElement) setValue(key, target.checked)
 }
 
+function toggleCardInfo(key: NodeCardInfoKey, event: Event): void {
+  if (!(event.target instanceof HTMLInputElement)) return
+  const selected = new Set(parseNodeCardInfoFields(theme.draft.nodeCardInfoFields))
+  if (event.target.checked) selected.add(key)
+  else selected.delete(key)
+  setValue('nodeCardInfoFields', NODE_CARD_INFO_FIELDS.filter(field => selected.has(field.key)).map(field => field.key).join(','))
+}
+
 /** 清空输入框时保留原值，不把空串写成 NaN 让 schema 报一条假错误。 */
 function onNumber(key: keyof ThemeSettings, event: Event): void {
   const target = event.target
@@ -232,6 +244,10 @@ watch(siteTitle, (title) => {
       />
 
       <main v-if="!coldStartCover" class="settings-page">
+        <button v-if="scrollY > 180" class="settings-return glass-panel" type="button" @click="router.push({ name: 'home' })">
+          <AppIcon name="tabler:arrow-left" :size="14" />
+          <span>返回节点列表</span>
+        </button>
         <section class="settings-intro glass-panel">
           <div class="settings-intro__copy">
             <button class="detail-back" type="button" @click="router.push({ name: 'home' })">
@@ -305,6 +321,15 @@ watch(siteTitle, (title) => {
                       <small v-if="field.note" class="settings-note">{{ field.note }}</small>
                     </span>
                   </label>
+
+                  <fieldset v-else-if="field.kind === 'node-card-info'" class="settings-card-info settings-field--wide">
+                    <legend>{{ field.label }}</legend>
+                    <label v-for="item in NODE_CARD_INFO_FIELDS" :key="item.key">
+                      <input type="checkbox" :checked="parseNodeCardInfoFields(theme.draft.nodeCardInfoFields).includes(item.key)" @change="toggleCardInfo(item.key, $event)">
+                      <span>{{ item.label }}</span>
+                    </label>
+                    <small>{{ field.help }}</small>
+                  </fieldset>
 
                   <div v-else-if="field.kind === 'probe-targets'" class="settings-field settings-field--wide">
                     <span>{{ field.label }}</span>

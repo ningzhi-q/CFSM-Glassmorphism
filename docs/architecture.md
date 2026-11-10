@@ -438,3 +438,12 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 `mergeRealtimeSample` 只在探测值真实变化时复制 latency / packetLoss 对象；`glassmorphism-adapter` 用 WeakMap 复用不可变窗口转换和当前探测模型，标签缓存保留所属站点配置身份。`ServerCard` 缩小探测 computed 的依赖，CPU / 网速更新不重新创建全部探测柱和时间文本。`NodeProbePanel` 每条色带使用一个真实 reka-ui Tooltip，柱子仍完整绘制，指针委托和左右键选择真实采样，并把 Tooltip 锚点移动到对应柱子；仅格式化当前提示。`false` / `null` / `0` 保持不同语义，点击仍打开原 ECharts 弹窗。
 
 地图提示名单用换行分隔每台 VPS，长名单在提示文字内部滚动，箭头保持在滚动区域外。`AppTooltip` 继续使用 reka-ui 的 Trigger、Portal、Content 与碰撞处理。香港 `Central` 以国家限定名称映射显示为「中环」，不改原始城市、行政地区、来源或坐标，不套用于其他国家。没有新增请求、逐卡计时器、设置或整卡离屏占位。性能条件、响应式验收和限制见 [全部节点性能验收](all-nodes-performance.md)。
+
+
+## 2026-11-10 · 时钟与节点信息隔离
+
+`OverviewClock.vue` 独立使用上游同款 `useNow({ interval: 1000 })`，复用 `utils/clock-format.ts` 的中文时间和日期格式；隐藏文档、KeepAlive 停用时暂停，恢复时立即取当前时间。每秒响应式更新限于时钟卡，不把秒级时钟传给总览统计、ServerCard 或探测历史，网络上报节奏不能冻结时钟。浏览器主线程阻塞或后台节流仍可能推迟显示，恢复后取真实当前时间，不补造漏掉的秒。
+
+`domain/node-card-info.ts` 定义可选键和白名单，`theme/settings.ts` 规范化三层设置及完整保存快照。首页普通和保留网格均传入该值并纳入 v-memo 依赖，隐藏中的节点重新显示时也使用最新选择。卡片从 normalized model 格式化数据，保持价格隐私和账单适用性。
+
+地图名单在内部滚动边界把单次纵向滚轮尚未消费的距离交给页面；横向操作和 Ctrl/Meta 缩放保持浏览器处理。返回顶部用 480ms 三次缓出逐帧滚动，用户滚轮、触摸、鼠标或键盘操作与组件卸载均取消动画；系统减少动态效果时直接到顶。

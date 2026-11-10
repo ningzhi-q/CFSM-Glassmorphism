@@ -2,6 +2,7 @@
 import { computed, defineAsyncComponent, ref } from 'vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppTooltip from '@/components/ui/AppTooltip.vue'
+import OverviewClock from '@/components/dashboard/OverviewClock.vue'
 import type { BillableNode } from '@/domain/finance'
 import {
   buildGeneralCards,
@@ -72,8 +73,9 @@ function onKeydown(event: KeyboardEvent, card: PresentationCard): void {
         <span class="overview-card__label">{{ card.label }}</span>
         <AppIcon class="overview-card__icon" :name="card.icon" :size="20" />
       </div>
+      <OverviewClock v-if="card.key === 'currentTime'" />
       <AppTooltip
-        v-if="card.hint"
+        v-else-if="card.hint"
         :content="card.hint"
         placement="top"
         as="div"

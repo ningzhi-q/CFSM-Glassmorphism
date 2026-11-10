@@ -128,6 +128,23 @@ function openMember(server: GlassServer): void {
   const live = props.servers.find(node => node.key === server.key)
   if (live) emit('selectServer', live)
 }
+
+function onLegendWheel(event: WheelEvent): void {
+  const list = event.currentTarget
+  // Leave horizontal scrolling and browser pinch-to-zoom to the browser.
+  if (!(list instanceof HTMLElement) || event.ctrlKey || event.metaKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+  const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? list.clientHeight : 1
+  const delta = event.deltaY * unit
+  const maximum = Math.max(0, list.scrollHeight - list.clientHeight)
+  const available = delta > 0 ? maximum - list.scrollTop : list.scrollTop
+  if (Math.abs(delta) <= available) return
+  // A single gesture can reach the list boundary and continue down the page.
+  // Forward only the unused distance so it never gets scrolled twice.
+  event.preventDefault()
+  const consumed = Math.sign(delta) * Math.max(0, available)
+  list.scrollTop += consumed
+  window.scrollBy({ top: delta - consumed, behavior: 'instant' })
+}
 const legendTooltips = computed(() => new Map(legendClusters.value.map(cluster => [cluster.id, clusterTooltip(cluster)])))
 const legendDensityClass = computed(() => {
   const count = legendClusters.value.length
@@ -324,7 +341,7 @@ const visualClusterMarkers = computed(() => {
             清除筛选
           </button>
         </div>
-        <div class="legend-list" role="group" aria-label="节点位置列表">
+        <div class="legend-list" role="group" aria-label="节点位置列表" @wheel="onLegendWheel">
           <button
             v-for="(cluster, index) in legendClusters" :key="cluster.id" v-memo="[cluster, index, legendMode, hoveredClusterId === cluster.id, props.selectedCountry]"
             type="button"
@@ -606,7 +623,7 @@ const visualClusterMarkers = computed(() => {
   gap: var(--legend-gap);
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
   backdrop-filter: blur(12px) saturate(150%);
 }
 
@@ -786,7 +803,7 @@ const visualClusterMarkers = computed(() => {
     --legend-copy-line-height: 1.2;
     --legend-name-font-size: 0.75rem;
     --legend-meta-font-size: 0.6rem;
-    width: 100%; height: 20rem; max-height: 20rem; padding: 0.6rem; overscroll-behavior-y: contain;
+    width: 100%; height: 20rem; max-height: 20rem; padding: 0.6rem; overscroll-behavior-y: auto;
   }
   .legend-item { min-height: 44px; }
   .legend-modes button { min-height: 36px; padding: 0.3rem 0.6rem; font-size: 12px; }

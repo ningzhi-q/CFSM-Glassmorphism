@@ -51,9 +51,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 describe('theme settings schema', () => {
+  it('resolves card information across layers, including an explicitly empty local selection', () => {
+    const defaults = resolveThemeSettings({}, {})
+    expect(defaults.nodeCardInfoFields).toBe('uptime,price,expiry,remainingValue')
+    const backend = { nodeCardInfoFields: 'price,expiry' }
+    expect(resolveThemeSettings(backend, {}).nodeCardInfoFields).toBe('price,expiry')
+    const hidden = resolveThemeSettings(backend, { nodeCardInfoFields: '' })
+    expect(hidden.nodeCardInfoFields).toBe('')
+    expect(createThemeOptionsSnapshot(hidden).nodeCardInfoFields).toBe('')
+    expect(resolveThemeSettings(backend, { nodeCardInfoFields: false }).nodeCardInfoFields).toBe('price,expiry')
+    expect(resolveThemeSettings({}, { nodeCardInfoFields: 'expiry,price,price,unknown' }).nodeCardInfoFields).toBe('price,expiry')
+  })
+
   it('normalizes the 48 upstream fields and custom display fields across three layers', () => {
-    expect(THEME_SETTING_KEYS).toHaveLength(52)
-    expect(Object.keys(createThemeOptionsSnapshot(resolveThemeSettings({}, {})))).toHaveLength(52)
+    expect(THEME_SETTING_KEYS).toHaveLength(53)
+    expect(Object.keys(createThemeOptionsSnapshot(resolveThemeSettings({}, {})))).toHaveLength(53)
     const backend = {
       themeMode: 'dark',
       offlineNodesLast: false,

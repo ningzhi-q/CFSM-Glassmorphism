@@ -1,3 +1,4 @@
+import { clockTime, clockDate } from '@/utils/clock-format'
 import type { IconName } from '@/constants/icons'
 import {
   convertAmount,
@@ -603,8 +604,6 @@ function gpuUtilization(server: GlassServer): number | null {
 }
 
 // 「当前时间」卡片每次重算都会用到，格式器只建一次。
-const CLOCK_TIME_FORMAT = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
-const CLOCK_DATE_FORMAT = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
 
 /** 按出现次数降序的取值分布，对应 Komari `getDistribution`。 */
 function distribution(values: Array<string | null>): Array<{ label: string, count: number }> {
@@ -779,7 +778,7 @@ export function buildGeneralCards(
 
   const values: Record<GeneralCardKey, PresentationCard | null> = {
     ...financeCards(finance),
-    currentTime: { key: 'currentTime', icon: 'tabler:clock', label: '当前时间', value: CLOCK_TIME_FORMAT.format(now), hint: CLOCK_DATE_FORMAT.format(now) },
+    currentTime: { key: 'currentTime', icon: 'tabler:clock', label: '当前时间', value: clockTime(now), hint: clockDate(now) },
     memory: usageCard('memory', 'icon-park-outline:memory', '内存用量', memory),
     disk: usageCard('disk', 'tabler:server-2', '硬盘用量', disk),
     totalTraffic: totalTraffic === null ? null : { key: 'totalTraffic', icon: 'tabler:download', label: '累计流量', value: totalTrafficSplit.value, unit: totalTrafficSplit.unit, hint: `↑ ${formatDisplayBytes(trafficUp)}\n↓ ${formatDisplayBytes(trafficDown)}${missingTrafficCount > 0 ? `\n部分 · ${missingTrafficCount} 台缺少流量数据，未计入` : ''}` },
