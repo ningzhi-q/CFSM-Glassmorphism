@@ -10,6 +10,7 @@ defineProps<{
   showSource: boolean
   density: NodeCardSize
   priceVisible: boolean
+  infoFields: string
   probeDisplayMode: 'single' | 'multiple'
   probeTargets: string
   probeWindowHours: 1 | 2
@@ -31,7 +32,7 @@ const emit = defineEmits<{
       v-for="server in servers"
       v-show="visibleKeys.has(server.key)"
       :key="server.key"
-      v-memo="[visibleKeys.has(server.key) ? server : server.key, showSource, density, probeDisplayMode, probeTargets, probeWindowHours, visibleKeys.has(server.key) ? probeNow : 0, favoriteKeys.has(server.key), priceVisible, visibleKeys.has(server.key)]"
+      v-memo="[visibleKeys.has(server.key) ? server : server.key, showSource, density, infoFields, probeDisplayMode, probeTargets, probeWindowHours, visibleKeys.has(server.key) ? probeNow : 0, favoriteKeys.has(server.key), priceVisible, visibleKeys.has(server.key)]"
       :server="server"
       :show-source="showSource"
       :density="density"
@@ -41,6 +42,7 @@ const emit = defineEmits<{
       :probe-now="probeNow"
       :favorite="favoriteKeys.has(server.key)"
       :price-visible="priceVisible"
+      :info-fields="infoFields"
       @open="emit('open', server)"
       @probe="emit('probe', server, $event)"
       @toggle-favorite="emit('toggleFavorite', server.key)"

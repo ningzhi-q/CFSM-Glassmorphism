@@ -216,3 +216,8 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 ## 2026-11-10：全部节点性能
 
 没有新增端点或 wire 字段。REST / WS 的 unknown 校验和 API Base 归属不变；探测对象只在已验证的值变化时懒复制，窗口转换缓存以不可变输入身份为键。提示逐行展示和香港 Central 译名属于展示层，不查询外部位置或写回服务器。首页探测继续使用公开列表已有的采样，点击后沿用原 ECharts 弹窗。
+
+
+## 2026-11-10 · 首页交互反馈契约
+
+新增 `nodeCardInfoFields` 仅通过现有 `GET /api/config.theme_options` 读取，通过现有 `POST /api/theme_options` 完整快照保存；现在共 53 项。时钟和滚动交互没有网络请求，首页卡片仍来自所属 API Base 的公开数据。地图 IPapi.is／DB-IP 署名继续仅依据已经校验的 `location.city_source` 或 `location.subdivision_source`，不能给 Cloudflare、运营者填写或国家参考数据统一署名 IPapi.is。`/api/servers`、`/api/server`、`/api/history/all` 和 `/api/ws` 契约没有变化。

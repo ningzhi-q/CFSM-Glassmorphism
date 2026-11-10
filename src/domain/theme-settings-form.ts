@@ -17,7 +17,7 @@ import type { ThemeSettings } from '@/theme/settings'
  * 上游字段与保存快照中（加上用户增强 groupOrder 共 52 项；保存协议要求发送完整对象）；最终稳定版决定保留，见 `docs/todo.md` TODO-02。
  */
 
-export type ThemeFieldKind = 'select' | 'switch' | 'text' | 'password' | 'number' | 'textarea' | 'probe-targets'
+export type ThemeFieldKind = 'select' | 'switch' | 'text' | 'password' | 'number' | 'textarea' | 'probe-targets' | 'node-card-info'
 
 export interface ThemeFieldOption {
   value: string
@@ -133,6 +133,13 @@ export const THEME_SETTINGS_FORM: readonly ThemeFieldGroup[] = [
         options: CARD_SIZE_OPTIONS,
         help: '从高密度迷你到宽松，默认紧凑。',
         enabled: (settings) => settings.defaultViewMode !== 'list',
+      },
+      {
+        key: 'nodeCardInfoFields',
+        label: '节点卡片信息',
+        kind: 'node-card-info',
+        wide: true,
+        help: '选择卡片名称下方展示的信息，全部取消可隐藏这些信息，多来源标识保留。价格隐私仍生效；一次性或永久节点不显示剩余价值。',
       },
     ],
   },

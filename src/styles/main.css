@@ -4350,7 +4350,7 @@ a {
   width: min(100% - 36px, 1320px);
   flex: 1;
   margin-inline: auto;
-  padding: 24px 0 56px;
+  padding: 24px 0 92px;
 }
 
 /*
@@ -4895,7 +4895,7 @@ a {
  * 高度由内容决定，`min-h-[40rem] sm:min-h-[30rem] md:min-h-[36rem] lg:min-h-[40rem]` 只是下限。
  */
 .general-stage--tiled {
-  min-height: 40rem;
+  min-height: 0;
   padding: 12px;
 }
 
@@ -4918,7 +4918,7 @@ a {
 
 @media (min-width: 640px) {
   .general-stage--tiled {
-    min-height: 30rem;
+    min-height: 0;
     padding: 16px;
     gap: 12px;
   }
@@ -4976,7 +4976,7 @@ a {
   }
 
   .general-stage--tiled {
-    min-height: 36rem;
+    min-height: 0;
   }
 
   .general-stage.general-stage--tiled .general-stage__earth {
@@ -4991,7 +4991,7 @@ a {
 
 @media (min-width: 1024px) {
   .general-stage--tiled {
-    min-height: 40rem;
+    min-height: 0;
   }
 
   .general-stage.general-stage--tiled .general-stage__earth {
@@ -6122,7 +6122,14 @@ a {
   }
 }
 
-.geography-filter { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 0.8rem; border: 1px solid var(--glass-border); border-radius: 0.75rem; background: var(--control-surface); color: var(--glass-text); }
+.geography-filter { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; min-height: 40px; margin-bottom: 12px; padding: 0.6rem 0.8rem; border: 1px solid var(--glass-border); border-radius: 0.75rem; background: var(--control-surface); color: var(--glass-text); }
+.settings-return { position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(24px, env(safe-area-inset-bottom)); z-index: 30; display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: var(--radius); color: var(--ink); font: inherit; cursor: pointer; }
+.settings-return:hover, .settings-return:focus-visible { color: var(--emerald); background: var(--glass-hover); }
+.settings-card-info { display: flex; flex-wrap: wrap; gap: 12px; min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 11px; }
+.settings-card-info legend { font-size: 12px; }
+.settings-card-info label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+.settings-card-info input { accent-color: var(--emerald); }
+.settings-card-info small { flex-basis: 100%; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .geography-filter button { background: transparent; border: 0; color: var(--emerald); cursor: pointer; font: inherit; }
 
 .node-metric__label--load .app-icon { color: var(--violet); }

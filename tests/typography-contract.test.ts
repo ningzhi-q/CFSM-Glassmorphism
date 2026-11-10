@@ -295,7 +295,7 @@ describe('剩余天数行按上游收紧间隙', () => {
 
   it('流量盒挂完整文本提示，到期信息已移到可换行芯片', () => {
     expect(serverCard).toContain(':title="`流量：${trafficRatioText(trafficView)}`"')
-    expect(serverCard).toContain('list.push(expiryFullText.value)')
+    expect(serverCard).toContain("expiry: expireVisible.value ? expiryFullText.value : ''")
     expect(serverCard).toContain('剩余价值 ${remainingValueText.value}')
   })
 })

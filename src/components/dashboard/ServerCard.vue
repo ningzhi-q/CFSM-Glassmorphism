@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { PROBE_TARGETS } from '@/constants/probes'
 import type { GlassServer, GlassLatencySample } from '@/types/glassmorphism'
 import type { NodeCardSize } from '@/theme/settings'
+import { DEFAULT_NODE_CARD_INFO_FIELDS, parseNodeCardInfoFields } from '@/domain/node-card-info'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppProgressThin from '@/components/ui/AppProgressThin.vue'
 import NodeProbePanel from '@/components/dashboard/NodeProbePanel.vue'
@@ -55,12 +56,14 @@ const props = withDefaults(defineProps<{
   favorite: boolean
   /** 主题级价格隐私（未登录隐藏价格）。每台节点自身的 showPrice 仍单独生效。 */
   priceVisible: boolean
+  infoFields?: string
   probeDisplayMode?: 'single' | 'multiple'
   probeTargets?: string
   probeWindowHours?: 1 | 2
   probeNow?: number
 }>(), {
   probeDisplayMode: 'single',
+  infoFields: DEFAULT_NODE_CARD_INFO_FIELDS,
   probeTargets: PROBE_TARGETS.join('\n'),
   probeWindowHours: 2,
   probeNow: () => Date.now(),
@@ -162,12 +165,13 @@ const offlineText = computed(() => {
 })
 
 const chips = computed(() => {
-  const list: string[] = [uptimeText.value]
-  if (priceText.value) list.push(priceText.value)
-  if (expireVisible.value) {
-    list.push(expiryFullText.value)
-    if (remainingValueText.value) list.push(`剩余价值 ${remainingValueText.value}`)
+  const values = {
+    uptime: uptimeText.value,
+    price: priceText.value,
+    expiry: expireVisible.value ? expiryFullText.value : '',
+    remainingValue: expireVisible.value && remainingValueText.value ? `剩余价值 ${remainingValueText.value}` : '',
   }
+  const list = parseNodeCardInfoFields(props.infoFields).map(key => values[key]).filter(Boolean)
   if (props.showSource) list.push(props.server.sourceLabel)
   return list
 })
@@ -318,7 +322,7 @@ function hideMissingImage(event: Event): void {
     </header>
 
     <div class="node-card__body">
-      <div class="node-card__chips">
+      <div v-if="chips.length" class="node-card__chips">
         <span v-for="chip in chips" :key="chip" class="node-chip">{{ chip }}</span>
       </div>
 
