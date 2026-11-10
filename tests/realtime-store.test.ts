@@ -5,6 +5,7 @@ import { apiSource } from '@/services/cfsm/config'
 import { dashboardSampleSettleDelayMs, useRealtimeStore } from '@/stores/realtime'
 import { useServersStore } from '@/stores/servers'
 import type { ServerCollection } from '@/types/cfsm'
+import type { VisibilitySource } from '@/services/cfsm/dashboard-realtime'
 
 /*
  * 「数据更新间隔」只在 WebSocket 不可用时才被读到，设置页需要如实说明此刻算哪种。
@@ -41,8 +42,92 @@ function stubSocket(): void {
   })
 }
 
+class FakeVisibility implements VisibilitySource {
+  hidden = false
+  private readonly listeners = new Set<() => void>()
+  addEventListener(_type: 'visibilitychange', listener: () => void): void {
+    this.listeners.add(listener)
+  }
+  removeEventListener(_type: 'visibilitychange', listener: () => void): void {
+    this.listeners.delete(listener)
+  }
+  change(hidden: boolean): void {
+    this.hidden = hidden
+    for (const listener of this.listeners) listener()
+  }
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
+
+describe('online status across page visibility', () => {
+  it('retains the last real snapshot while hidden and recovering, then expires only stale visible reports', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_700_000_000_000)
+    stubSocket()
+    const visibility = new FakeVisibility()
+    vi.stubGlobal('document', visibility)
+    setActivePinia(createPinia())
+    const servers = useServersStore()
+    servers.collections = [collection()]
+    const realtime = useRealtimeStore()
+    const expire = vi.spyOn(servers, 'expireStaleServers')
+    let finish: (() => void) | undefined
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => {
+      finish = () => resolve(new Response(JSON.stringify({
+        servers: [{ id: 'node-1', name: 'Node 1', cpu: 20, last_updated: Date.now() }],
+      }), { status: 200 }))
+    })))
+    const refreshRest = vi.fn(() => servers.load([BASE]))
+    realtime.start(refreshRest)
+
+    visibility.change(true)
+    await vi.advanceTimersByTimeAsync(6 * 60_000)
+    expect(expire).not.toHaveBeenCalled()
+    expect(servers.servers[0]).toMatchObject({ online: true, cpu: 10, lastUpdated: 1_700_000_000 })
+
+    visibility.change(false)
+    expect(realtime.recovering).toBe(true)
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(expire).not.toHaveBeenCalled()
+    expect(servers.servers[0]?.online).toBe(true)
+    expect(refreshRest).toHaveBeenCalledOnce()
+
+    finish?.()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(realtime.recovering).toBe(false)
+    expect(servers.servers[0]).toMatchObject({ online: true, cpu: 20 })
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
+    expect(servers.servers[0]?.online).toBe(true)
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(servers.servers[0]?.online).toBe(false)
+    realtime.stop()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('ends recovery on REST failure and reports genuine staleness without inventing a new report time', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_700_000_000_000)
+    stubSocket()
+    const visibility = new FakeVisibility()
+    vi.stubGlobal('document', visibility)
+    setActivePinia(createPinia())
+    const servers = useServersStore()
+    servers.collections = [collection()]
+    const realtime = useRealtimeStore()
+    realtime.start(async () => { throw new Error('network unavailable') })
+    visibility.change(true)
+    await vi.advanceTimersByTimeAsync(6 * 60_000)
+    visibility.change(false)
+    expect(realtime.recovering).toBe(true)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(realtime.recovering).toBe(false)
+    expect(servers.servers[0]).toMatchObject({ online: false, cpu: 10, lastUpdated: 1_700_000_000 })
+    realtime.stop()
+    expect(vi.getTimerCount()).toBe(0)
+  })
 })
 
 describe('dashboard sample settle delay', () => {

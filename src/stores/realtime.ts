@@ -42,6 +42,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
   const fallbackActive = ref(false)
   const timedOut = ref(false)
   const paused = ref(false)
+  const recovering = ref(false)
   /*
    * 首页由 KeepAlive 保留，离开首页后连接照常运行，上面这些状态仍是当前值；
    * 只有首页真正卸载时 stop() 才会清空它们。这一对快照不参与连接逻辑，只记录
@@ -51,7 +52,6 @@ export const useRealtimeStore = defineStore('realtime', () => {
   const lastObservedStatus = ref<DashboardRealtimeStatus | null>(null)
   const lastObservedAt = ref<number | null>(null)
   let controller: DashboardRealtimeController | null = null
-  let staleTimer: ReturnType<typeof setInterval> | null = null
 
   const sourceCount = computed(() => Object.keys(sourceStates.value).length)
   const openSourceCount = computed(() => Object.values(sourceStates.value).filter(
@@ -79,12 +79,11 @@ export const useRealtimeStore = defineStore('realtime', () => {
     observe()
     controller?.dispose()
     controller = null
-    if (staleTimer !== null) globalThis.clearInterval(staleTimer)
-    staleTimer = null
     sourceStates.value = {}
     fallbackActive.value = false
     timedOut.value = false
     paused.value = false
+    recovering.value = false
   }
 
   function start(refreshRest: () => Promise<void>): void {
@@ -104,6 +103,8 @@ export const useRealtimeStore = defineStore('realtime', () => {
       getSampleSettleDelayMs: () => dashboardSampleSettleDelayMs(servers.servers),
       refreshRest,
       onSampleBatches: (batches) => servers.applyRealtimeBatches(batches),
+      onFreshnessCheck: () => servers.expireStaleServers(),
+      onRecoveringChange: (active) => { recovering.value = active },
       onSourceState: (base, state) => {
         sourceStates.value = { ...sourceStates.value, [base]: state }
         observe()
@@ -122,7 +123,6 @@ export const useRealtimeStore = defineStore('realtime', () => {
       },
     })
     controller.start()
-    staleTimer = globalThis.setInterval(() => servers.expireStaleServers(), 30_000)
   }
 
   function sync(): void {
@@ -148,6 +148,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
     fallbackActive,
     timedOut,
     paused,
+    recovering,
     status,
     lastObservedStatus,
     lastObservedAt,

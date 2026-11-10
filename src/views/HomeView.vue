@@ -77,6 +77,7 @@ const coldStartCover = bootstrap?.coverVisible ?? ref(false)
 const viewState = useDashboardViewStore()
 const { query, selectedGroup, selectedCountry, sort, activeQuickFilter, advancedToolsVisible } = storeToRefs(viewState)
 const refreshing = ref(false)
+let restRefreshInFlight: Promise<void> | null = null
 // Komari UI_CONFIG.motion：staggerMs 35、staggerLimit 12。
 const NODE_ITEM_DELAY_STYLES = Array.from({ length: 13 }, (_, index) => ({
   '--node-item-delay': `${index * 35}ms`,
@@ -268,17 +269,22 @@ onDeactivated(() => {
   viewActive = false
 })
 
-async function refreshRest(): Promise<void> {
-  if (refreshing.value) return
-  refreshing.value = true
-  try {
-    await Promise.all([
-      app.initialize(),
-      serverStore.load(),
-    ])
-  } finally {
-    refreshing.value = false
-  }
+function refreshRest(): Promise<void> {
+  if (restRefreshInFlight) return restRefreshInFlight
+  const pending = (async () => {
+    refreshing.value = true
+    try {
+      await Promise.all([
+        app.initialize(),
+        serverStore.load(),
+      ])
+    } finally {
+      refreshing.value = false
+      restRefreshInFlight = null
+    }
+  })()
+  restRefreshInFlight = pending
+  return pending
 }
 
 // 通过 Turnstile 人机验证后重新拉取数据：此前的请求都因缺少凭据被 CFSM 以 403 拒绝。
@@ -463,7 +469,16 @@ onUnmounted(() => realtime.stop())
         </div>
 
         <div
-          v-if="allOffline"
+          v-if="realtime.recovering"
+          class="notice"
+          role="status"
+        >
+          <strong>正在更新节点状态</strong>
+          <span>正在获取最新数据，下方暂显示上次接收的数据。</span>
+        </div>
+
+        <div
+          v-else-if="allOffline"
           class="notice notice--offline"
           role="status"
         >

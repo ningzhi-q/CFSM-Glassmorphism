@@ -137,7 +137,7 @@ CFSM 仍只按可靠 `region` 做地球定位，后台仍外链 `/admin#admin`�
 | 磁盘 IO | 吞吐、IOPS、await、util | disk 对象 | 缺失或全零时隐藏 | ✅ 一致 |
 | 八目标即时延迟/丢包 | Ping 指标 | ping/loss 的 CT/CU/CM/BD 与 Node 1–4 字段 | 三态映射；首页保留旧四线路，详情完整显示旧四线路和 Node 1–4 | ✅ 一致 |
 | 延迟窗口小图 | 历史延迟序列 | `/api/servers` ping/loss 窗口 | 使用真实稀疏时间戳，不补点 | ✅ 一致 |
-| 在线状态 | Komari online 字段 | is_online 或 last_updated/timestamp | 遵循五分钟在线阈值 | 🟢 等价实现 |
+| 在线状态 | Komari online 字段 | is_online 或 last_updated/timestamp | 遵循五分钟在线阈值；隐藏时保留最后快照，切回先完成 REST 刷新，期间标明正在更新，随后恢复过期检查 | 🟢 等价实现 |
 | 多 API Base | 原主题单后端 | apiBase meta 可配置多个 origin | 每个节点保存 source ownership | 🟢 等价实现 |
 | 定时刷新间隔 | dataUpdateInterval/RPC | REST 回退 + Agent 配置的 WSS 上报节奏 | 设置只控制 WebSocket 不可用时的 REST 补偿轮询；WSS 按 `wss_report_interval` 推送，前端不强制为 5 秒或 10 秒 | 🟡 降级实现 |
 | 实时订阅 | `/api/clients` | `/api/ws` | 每个 base 独立连接、订阅其自身 IDs、增量合并 | 🟢 等价实现 |

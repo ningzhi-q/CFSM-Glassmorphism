@@ -19,6 +19,8 @@ apiBase 的来源是 HTML 中可选的 `<meta name="apiBase" content="https://a.
 
 Transport 位于 `src/services/cfsm/http.ts`，endpoint orchestration 位于 `src/services/cfsm/api.ts`，所有 wire payload 都在 `src/services/cfsm/adapters.ts` 从 `unknown` 转为领域类型。Vue 组件不直接调用 `fetch`。
 
+2026-11-10 页面恢复修复沿用一次 `/api/config` 与各 owning base 的 `/api/servers` 并行刷新，然后重建每来源一个显式订阅的 WebSocket。没有新增接口、后台轮询或逐节点请求；刷新期间停止在线过期检查并标明缓存数据，成功或失败后按原五分钟阈值判定。
+
 v1.1.12 维护预览只收敛请求生命周期：默认 15 秒超时和调用方取消持续到响应体读取完成，响应流中断使用既有 `networkError` 分类。端点、鉴权、状态码、请求参数与 probe 三态不变；没有新增轮询或写接口。
 
 ## 第三方汇率数据源（v1.1.7）

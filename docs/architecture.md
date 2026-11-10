@@ -54,6 +54,7 @@ UI (render and user intent only)
 - `dashboard-realtime.ts` 负责首页多 base 协调、visibility 生命周期、REST 补偿与用户超时决策；不会跨来源拼接订阅 ID。
 - `detail-realtime.ts` 只建立 owning base 的 `subscribe=<serverId>` 连接；页面恢复可见时先刷新单节点 REST，失败时以单个低频 REST 循环补偿。
 - 首页与详情的可见性恢复共享正在进行的 REST 刷新；快速隐藏/显示时只允许最新 visibility revision 在刷新结束后恢复连接，卸载后不再重连。WebSocket 订阅、心跳或 error 失败统一关闭旧连接并进入原有退避流程。
+- 首页的 30 秒在线过期检查归 `dashboard-realtime.ts` 管理，与连接、回退轮询一起在隐藏、暂停、超时与卸载时停止。切回进入 `recovering`，等共享 REST 刷新结束后立即检查真实时间戳再恢复连接和计时器；刷新失败也结束恢复状态，不延长五分钟阈值。HomeView 的手动与自动刷新共用同一个 Promise，避免重连越过正在运行的请求。恢复期间 UI 标明最后快照，暂不显示「所有节点都已离线」。
 - `errors.ts` 把 400/401/403/404/409/5xx（含 503）、网络错误与未知错误转换为稳定 issue（含 `forbidden` 与 `server-error`）；UI 只选择对应文案，不解析响应体。
 - `identifiers.ts` 提供统一的 `normalizeServerId` 白名单校验，`api.ts` 详情/历史请求与 `websocket.ts` 订阅 ID 清洗共用；非法 id 在发请求前即被拒绝（400 `invalidServerId`）。
 

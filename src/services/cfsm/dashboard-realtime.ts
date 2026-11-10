@@ -19,6 +19,7 @@ const MIN_FALLBACK_INTERVAL_MS = 5_000
 const DEFAULT_SAMPLE_SETTLE_DELAY_MS = 1_000
 const MIN_SAMPLE_SETTLE_DELAY_MS = 250
 const MAX_SAMPLE_SETTLE_DELAY_MS = 1_000
+const FRESHNESS_CHECK_INTERVAL_MS = 30_000
 
 type IntervalHandle = ReturnType<typeof setInterval>
 type TimeoutHandle = ReturnType<typeof setTimeout>
@@ -52,6 +53,10 @@ export interface DashboardRealtimeOptions {
   onFallbackChange(active: boolean): void
   onTimeoutChange(timedOut: boolean): void
   onPausedChange(paused: boolean): void
+  /** Visibility recovery displays the last snapshot until REST has settled. */
+  onRecoveringChange?(recovering: boolean): void
+  /** Expire stale reports only while the page can actually receive updates. */
+  onFreshnessCheck?(): void
   createSocket?: DashboardSocketFactory
   documentRef?: VisibilitySource
   scheduler?: DashboardRealtimeScheduler
@@ -108,6 +113,7 @@ export function createDashboardRealtime(
   const pendingSamples = new Map<string, CfsmRealtimeSample[]>()
   let fallbackTimer: IntervalHandle | null = null
   let sampleFlushTimer: TimeoutHandle | null = null
+  let freshnessTimer: IntervalHandle | null = null
   let fallbackActive = false
   let refreshInFlight: Promise<void> | null = null
   let started = false
@@ -115,9 +121,30 @@ export function createDashboardRealtime(
   let timedOut = false
   let paused = false
   let visibilityRevision = 0
+  let recovering = false
 
   function visible(): boolean {
     return documentRef?.hidden !== true
+  }
+
+  function setRecovering(active: boolean): void {
+    if (recovering === active) return
+    recovering = active
+    options.onRecoveringChange?.(active)
+  }
+
+  function stopFreshnessChecks(): void {
+    if (freshnessTimer !== null) scheduler.clearInterval(freshnessTimer)
+    freshnessTimer = null
+  }
+
+  function startFreshnessChecks(): void {
+    if (freshnessTimer !== null || !options.onFreshnessCheck) return
+    freshnessTimer = scheduler.setInterval(() => {
+      if (!disposed && visible() && !recovering && !timedOut && !paused) {
+        options.onFreshnessCheck?.()
+      }
+    }, FRESHNESS_CHECK_INTERVAL_MS)
   }
 
   function flushPendingSamples(): void {
@@ -171,6 +198,9 @@ export function createDashboardRealtime(
     await pending
     if (refreshInFlight === pending) refreshInFlight = null
     if (revision === visibilityRevision && !disposed && visible() && !timedOut && !paused) {
+      // A failed refresh must also end recovery: never extend the five-minute threshold.
+      if (recovering) options.onFreshnessCheck?.()
+      setRecovering(false)
       sync()
     }
   }
@@ -207,13 +237,16 @@ export function createDashboardRealtime(
     paused = false
     options.onPausedChange(false)
     options.onTimeoutChange(true)
+    setRecovering(false)
+    stopFreshnessChecks()
     clearPendingSamples()
     closeConnections()
     stopFallback()
   }
 
   function sync(): void {
-    if (!started || disposed || !visible() || timedOut || paused) return
+    if (!started || disposed || !visible() || recovering || timedOut || paused) return
+    startFreshnessChecks()
     const sources = new Map(
       options.getSources()
         .filter((source) => source.ids.length > 0)
@@ -255,12 +288,15 @@ export function createDashboardRealtime(
   function handleVisibilityChange(): void {
     visibilityRevision += 1
     if (!visible()) {
+      setRecovering(false)
+      stopFreshnessChecks()
       clearPendingSamples()
       closeConnections()
       stopFallback()
       return
     }
     if (timedOut || paused) return
+    setRecovering(true)
     void refreshAndSync(visibilityRevision)
   }
 
@@ -286,6 +322,8 @@ export function createDashboardRealtime(
       paused = true
       options.onTimeoutChange(false)
       options.onPausedChange(true)
+      setRecovering(false)
+      stopFreshnessChecks()
       clearPendingSamples()
       closeConnections()
       stopFallback()
@@ -303,6 +341,8 @@ export function createDashboardRealtime(
       disposed = true
       visibilityRevision += 1
       documentRef?.removeEventListener('visibilitychange', handleVisibilityChange)
+      setRecovering(false)
+      stopFreshnessChecks()
       clearPendingSamples()
       closeConnections()
       stopFallback()

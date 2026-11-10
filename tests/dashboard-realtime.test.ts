@@ -114,6 +114,7 @@ describe('dashboard realtime coordination', () => {
     const refreshRest = vi.fn(() => new Promise<void>((resolve) => {
       finishRefresh = resolve
     }))
+    const onRecoveringChange = vi.fn()
     const controller = createDashboardRealtime({
       getSources: () => [{ base: 'https://a.example', ids: ['a-1'] }],
       getTimeoutMinutes: () => 0,
@@ -123,6 +124,7 @@ describe('dashboard realtime coordination', () => {
       onFallbackChange: vi.fn(),
       onTimeoutChange: vi.fn(),
       onPausedChange: vi.fn(),
+      onRecoveringChange,
       createSocket: factory.createSocket,
       documentRef: visibility,
     })
@@ -134,11 +136,56 @@ describe('dashboard realtime coordination', () => {
 
     visibility.hidden = false
     visibility.emit()
+    expect(onRecoveringChange).toHaveBeenLastCalledWith(true)
+    controller.sync()
     expect(refreshRest).toHaveBeenCalledOnce()
     expect(factory.connections).toHaveLength(1)
     finishRefresh?.()
     await vi.waitFor(() => expect(factory.connections).toHaveLength(2))
+    expect(onRecoveringChange).toHaveBeenLastCalledWith(false)
     controller.dispose()
+  })
+
+  it('cleans up freshness checks and recovery during rapid visibility changes, pauses and disposal', async () => {
+    vi.useFakeTimers()
+    const visibility = new FakeVisibility()
+    const factory = connectionFactory()
+    const onFreshnessCheck = vi.fn()
+    const onRecoveringChange = vi.fn()
+    let finish: (() => void) | undefined
+    const refreshRest = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
+    const controller = createDashboardRealtime({
+      getSources: () => [{ base: 'https://a.example', ids: ['a-1'] }],
+      getTimeoutMinutes: () => 0, refreshRest,
+      onSampleBatches: vi.fn(), onSourceState: vi.fn(), onFallbackChange: vi.fn(),
+      onTimeoutChange: vi.fn(), onPausedChange: vi.fn(), onFreshnessCheck, onRecoveringChange,
+      createSocket: factory.createSocket, documentRef: visibility,
+    })
+    controller.start()
+    expect(vi.getTimerCount()).toBe(1)
+    for (let i = 0; i < 2; i += 1) {
+      visibility.hidden = true
+      visibility.emit()
+      expect(vi.getTimerCount()).toBe(0)
+      visibility.hidden = false
+      visibility.emit()
+    }
+    expect(refreshRest).toHaveBeenCalledOnce()
+    controller.pauseAfterTimeout()
+    expect(onRecoveringChange).toHaveBeenLastCalledWith(false)
+    finish?.()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(factory.connections).toHaveLength(1)
+    expect(onFreshnessCheck).not.toHaveBeenCalled()
+    controller.resume()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(onFreshnessCheck).toHaveBeenCalledOnce()
+    factory.options[1]?.onTimeout()
+    expect(vi.getTimerCount()).toBe(0)
+    controller.continueAfterTimeout()
+    expect(vi.getTimerCount()).toBe(1)
+    controller.dispose()
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('requires an explicit decision after the configured connection lifetime', () => {
