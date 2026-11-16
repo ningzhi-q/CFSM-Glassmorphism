@@ -229,3 +229,7 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 公开站点配置 `probe_catalog` 返回 enabled 与 groups（id/name/family/targets），目标仅含 id/name，地址留在认证后台。family 为 ipv4、ipv6 或 auto。REST、详情、WS 和历史返回 `probes: { p_id: { ts, latency, loss } }`；ts 为毫秒。缺字段保留既有快照，显式对象替换动态目标，空对象清空。latency/loss 的 false、null、数字分别为关闭、无结果、真实值。
 
 认证后台保存 site_options.probe_catalog（含 address/enabled）与 servers.probe_selection（auto/manual、稳定目标 ID）。Agent schema 8 通过 POST 配置回复或 WSS 接收 URL 编码配置；schema 3–7 不接收动态字段。历史在 probe_results JSON 列保存采样时间，禁止把缓存结果改标为新探测。
+
+## v1.2.2 分组显示契约
+
+公开 probe_catalog.groups[].targets 仍只含启用的目标 ID/名称，不接触实际地址。每台服务器使用其所属源的目录与 ip_v4/ip_v6 可达标志；主题 POST /api/theme_options 的完整快照新增 probeSelectionMode（auto/manual），probeTargets 存组内显示选择与顺序，不改变 Agent 探测配置。

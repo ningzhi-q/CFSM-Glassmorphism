@@ -12,6 +12,7 @@ defineProps<{
   priceVisible: boolean
   infoFields: string
   probeDisplayMode: 'single' | 'multiple'
+  probeSelectionMode: 'auto' | 'manual'
   probeTargets: string
   probeWindowHours: 1 | 2
   probeNow: number
@@ -32,11 +33,12 @@ const emit = defineEmits<{
       v-for="server in servers"
       v-show="visibleKeys.has(server.key)"
       :key="server.key"
-      v-memo="[visibleKeys.has(server.key) ? server : server.key, showSource, density, infoFields, probeDisplayMode, probeTargets, probeWindowHours, visibleKeys.has(server.key) ? probeNow : 0, favoriteKeys.has(server.key), priceVisible, visibleKeys.has(server.key)]"
+      v-memo="[visibleKeys.has(server.key) ? server : server.key, showSource, density, infoFields, probeDisplayMode, probeSelectionMode, probeTargets, probeWindowHours, visibleKeys.has(server.key) ? probeNow : 0, favoriteKeys.has(server.key), priceVisible, visibleKeys.has(server.key)]"
       :server="server"
       :show-source="showSource"
       :density="density"
       :probe-display-mode="probeDisplayMode"
+      :probe-selection-mode="probeSelectionMode"
       :probe-targets="probeTargets"
       :probe-window-hours="probeWindowHours"
       :probe-now="probeNow"

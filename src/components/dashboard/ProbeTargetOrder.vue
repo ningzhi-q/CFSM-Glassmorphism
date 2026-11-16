@@ -3,13 +3,19 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Sortable, { type SortableEvent } from 'sortablejs'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { PROBE_TARGETS, probeTargetsIn } from '@/constants/probes'
-import { parseProbeTargets } from '@/domain/probe-display'
+import { orderedCatalogTargets, parseProbeTargets } from '@/domain/probe-display'
 import type { ProbeCatalog, ProbeLabels, ProbeTarget } from '@/types/cfsm'
 
-const props = defineProps<{ modelValue: string; labels: Readonly<ProbeLabels>; catalog?: ProbeCatalog }>()
-const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
-const available = computed(() => probeTargetsIn(props.labels))
-const selected = computed(() => props.modelValue === PROBE_TARGETS.join('\n') ? available.value : parseProbeTargets(props.modelValue))
+const props = defineProps<{ modelValue: string; labels: Readonly<ProbeLabels>; catalog?: ProbeCatalog; selectionMode?: 'auto' | 'manual' }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string]; 'update:selectionMode': [value: 'auto' | 'manual'] }>()
+const activeGroupId = ref('')
+const groups = computed(() => props.catalog?.enabled ? props.catalog.groups : [])
+const activeGroup = computed(() => groups.value.find(group => group.id === activeGroupId.value) ?? groups.value[0])
+const allAvailable = computed(() => props.catalog?.enabled ? orderedCatalogTargets(props.catalog, props.modelValue) : probeTargetsIn(props.labels))
+const allSelected = computed(() => props.catalog?.enabled && props.selectionMode !== 'manual' ? allAvailable.value
+  : props.modelValue === PROBE_TARGETS.join('\n') ? allAvailable.value : parseProbeTargets(props.modelValue))
+const available = computed(() => activeGroup.value ? allAvailable.value.filter(id => activeGroup.value?.targets.some(target => target.id === id)) : allAvailable.value)
+const selected = computed(() => allSelected.value.filter(id => available.value.includes(id)))
 const items = computed(() => [...selected.value, ...available.value.filter(target => !selected.value.includes(target))])
 const list = ref<HTMLOListElement | null>(null)
 const dragging = ref(false)
@@ -19,18 +25,17 @@ let originalNodes: Element[] = []
 let originalItems: ProbeTarget[] = []
 let cancelled = false
 
-function update(next: readonly ProbeTarget[]): void {
-  emit('update:modelValue', next.join('\n'))
+function update(next: readonly ProbeTarget[], manual = false): void {
+  const remaining = allSelected.value.filter(id => !available.value.includes(id))
+  const nextAll = [...remaining, ...next]
+  const ordered = props.catalog?.enabled ? orderedCatalogTargets(props.catalog, nextAll.join('\n')).filter(id => nextAll.includes(id)) : [...next]
+  emit('update:modelValue', ordered.join('\n'))
+  if (manual) emit('update:selectionMode', 'manual')
 }
 
 function toggle(target: ProbeTarget): void {
   if (dragging.value) return
-  update(selected.value.includes(target) ? selected.value.filter(item => item !== target) : [...selected.value, target])
-}
-
-function toggleGroup(targets: readonly ProbeTarget[]): void {
-  const remove = targets.every(target => selected.value.includes(target))
-  update(remove ? selected.value.filter(target => !targets.includes(target)) : [...new Set([...selected.value, ...targets])])
+  update(selected.value.includes(target) ? selected.value.filter(item => item !== target) : [...selected.value, target], true)
 }
 
 function move(target: ProbeTarget, direction: -1 | 1): void {
@@ -120,13 +125,9 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="probe-order-editor">
-    <div v-if="catalog?.enabled" class="probe-order-actions" aria-label="探测分组显示选择">
-      <button
-        v-for="group in catalog.groups" :key="group.id" type="button" class="settings-action" :disabled="dragging"
-        :aria-pressed="group.targets.length > 0 && group.targets.every(target => selected.includes(target.id))"
-        @click="toggleGroup(group.targets.map(target => target.id))"
-      >
-        {{ group.name }}
+    <div v-if="groups.length" class="probe-order-groups" role="tablist" aria-label="探测分组">
+      <button v-for="group in groups" :key="group.id" type="button" role="tab" :aria-selected="activeGroup?.id === group.id" :disabled="dragging" :class="{ 'is-active': activeGroup?.id === group.id }" @click="activeGroupId = group.id">
+        {{ group.name }} <small>{{ group.family === 'auto' ? '通用 / 双栈' : group.family === 'ipv4' ? 'IPv4' : 'IPv6' }} · {{ group.targets.length }}</small>
       </button>
     </div>
     <ol ref="list" class="probe-order-list" :class="{ 'is-dragging': dragging }" aria-label="探测线路显示顺序">
@@ -136,7 +137,7 @@ onBeforeUnmount(() => {
         </button>
         <label class="probe-order-name">
           <input type="checkbox" :checked="selected.includes(target)" :disabled="dragging" @change="toggle(target)">
-          <span>{{ labels[target] }}</span><small>{{ target }}</small>
+          <span>{{ labels[target] }}</span><small v-if="!catalog?.enabled">{{ target }}</small>
         </label>
         <div class="probe-order-moves">
           <button type="button" :aria-label="`上移 ${labels[target]}`" :disabled="selected.indexOf(target) <= 0 || dragging" @click="move(target, -1)">
@@ -150,17 +151,21 @@ onBeforeUnmount(() => {
     </ol>
     <span class="sr-only" role="status" aria-live="polite">{{ announcement }}</span>
     <div class="probe-order-actions">
-      <button type="button" class="settings-action" :disabled="dragging" @click="update(available)">
-        恢复默认选择
+      <button type="button" class="settings-action" :disabled="dragging" @click="update(available, true)">
+        选中本组全部
       </button>
-      <button type="button" class="settings-action" :disabled="dragging" @click="update([])">
-        全部取消
+      <button type="button" class="settings-action" :disabled="dragging" @click="update([], true)">
+        取消本组选择
       </button>
     </div>
   </div>
 </template>
 
 <style scoped>
+.probe-order-groups { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; }
+.probe-order-groups button { display: flex; align-items: center; gap: 6px; flex: none; padding: 8px 12px; border: 1px solid var(--glass-border); border-radius: var(--radius); background: var(--glass-soft); color: var(--ink); cursor: pointer; }
+.probe-order-groups button.is-active { border-color: var(--emerald); background: var(--glass-hover); }
+.probe-order-groups small { font-size: 11px; color: var(--muted); }
 .probe-order-list { list-style: none; margin: 0 0 10px; padding: 0; }
 .probe-order-list li, .probe-order-floating { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; }
 .probe-order-list li:hover { background: var(--glass-hover); }

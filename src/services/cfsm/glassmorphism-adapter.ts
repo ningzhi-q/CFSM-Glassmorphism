@@ -150,6 +150,7 @@ export function toGlassServer(server: CfsmServer, config: SiteConfig | null): Gl
       name: gpu.name,
       utilization: boundedPercentage(gpu.utilization),
     })),
+    probeCatalog: config?.probeCatalog,
     connectivity: {
       ipv4: server.ipV4Reachable,
       ipv6: server.ipV6Reachable,

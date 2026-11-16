@@ -110,28 +110,28 @@ const tasks = computed<PingTask[]>(() => {
   if (!current || sourceConfigPending.value) return []
   const palette = getChartSeriesPalette(accessible.value)
   const labels = sourceConfig.value?.probeLabels ?? DEFAULT_PROBE_LABELS
-  return labeledProbeTargets(activeProbeTargets(current, pingHistoryPoints.value), labels)
-    .map((entry, index) => ({
+  const active = activeProbeTargets(current, pingHistoryPoints.value)
+  const catalog = sourceConfig.value?.probeCatalog
+  const entries = catalog?.enabled ? catalog.groups.flatMap(group => labeledProbeTargets(group.targets.map(target => target.id).filter(target => active.includes(target)), labels)) : labeledProbeTargets(active, labels)
+  return entries.map((entry, index) => ({
       ...entry,
       color: palette[index % palette.length] ?? '#FF6B6B',
       stats: probeStats(pingHistoryPoints.value, entry.target),
     }))
 })
-const selectedTasks = computed(() => tasks.value.filter((task) => selected.value.includes(task.target)))
-const allSelected = computed(() => tasks.value.every((task) => selected.value.includes(task.target)))
+const activeTaskGroupId = ref('')
 const taskGroups = computed(() => (sourceConfig.value?.probeCatalog?.groups ?? []).flatMap(group => {
   const targets = tasks.value.filter(task => group.targets.some(target => target.id === task.target)).map(task => task.target)
   return targets.length ? [{ ...group, targets }] : []
 }))
-
-function toggleGroup(targets: readonly ProbeTarget[]): void {
-  selectionTouched.value = true
-  const remove = targets.every(target => selected.value.includes(target))
-  selected.value = remove ? selected.value.filter(target => !targets.includes(target)) : [...new Set([...selected.value, ...targets])]
-}
+const activeTaskGroup = computed(() => taskGroups.value.find(group => group.id === activeTaskGroupId.value) ?? taskGroups.value[0])
+const visibleTasks = computed(() => activeTaskGroup.value ? tasks.value.filter(task => activeTaskGroup.value?.targets.includes(task.target)) : tasks.value)
+const selectedTasks = computed(() => visibleTasks.value.filter(task => selected.value.includes(task.target)))
+const allSelected = computed(() => visibleTasks.value.every(task => selected.value.includes(task.target)))
 
 watch(() => (server.value ? `${server.value.source.base}::${server.value.id}` : ''), () => {
   selected.value = []
+  activeTaskGroupId.value = ''
   selectionTouched.value = false
   openTip.value = null
   helpOpen.value = false
@@ -161,12 +161,11 @@ function toggleTask(target: ProbeTarget): void {
 
 function showAll(): void {
   selectionTouched.value = true
-  selected.value = tasks.value.map((task) => task.target)
+  selected.value = [...new Set([...selected.value, ...visibleTasks.value.map(task => task.target)])]
 }
-
 function hideAll(): void {
   selectionTouched.value = true
-  selected.value = []
+  selected.value = selected.value.filter(target => !visibleTasks.value.some(task => task.target === target))
 }
 
 /*
@@ -275,7 +274,7 @@ function retry(): void {
         <button type="button" class="ping-chart__button" :class="{ 'is-active': allSelected }" @click="showAll">
           全选
         </button>
-        <button type="button" class="ping-chart__button" :class="{ 'is-active': selected.length === 0 }" @click="hideAll">
+        <button type="button" class="ping-chart__button" :class="{ 'is-active': selectedTasks.length === 0 }" @click="hideAll">
           全不选
         </button>
       </div>
@@ -296,16 +295,16 @@ function retry(): void {
         <div v-if="taskGroups.length" class="ping-chart__actions ping-chart__groups" aria-label="Ping 节点分组">
           <button
             v-for="group in taskGroups" :key="group.id" type="button" class="ping-chart__button"
-            :class="{ 'is-active': group.targets.every(target => isSelected(target)) }"
-            :aria-pressed="group.targets.every(target => isSelected(target))"
-            @click="toggleGroup(group.targets)"
+            :class="{ 'is-active': activeTaskGroup?.id === group.id }"
+            :aria-pressed="activeTaskGroup?.id === group.id"
+            @click="activeTaskGroupId = group.id"
           >
             {{ group.name }} · {{ group.targets.length }}
           </button>
         </div>
         <div v-if="tasks.length > 0" class="ping-task-grid">
           <div
-            v-for="task in tasks"
+            v-for="task in visibleTasks"
             :key="task.target"
             class="ping-task"
             :class="{ 'is-off': !isSelected(task.target) }"

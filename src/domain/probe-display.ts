@@ -1,5 +1,5 @@
 import { PROBE_TARGETS, isProbeTarget, isDynamicProbeTarget } from '@/constants/probes'
-import type { ProbeTarget, ProbeValue } from '@/types/cfsm'
+import type { ProbeCatalog, ProbeTarget, ProbeValue } from '@/types/cfsm'
 import type { GlassLatencySample, GlassServer } from '@/types/glassmorphism'
 import { normalizeTimestampMilliseconds } from '@/utils/format'
 import { windowAverage } from './probe-window'
@@ -8,6 +8,15 @@ export function parseProbeTargets(value: string): ProbeTarget[] {
   const lines = new Set(value.split(/\r?\n/).map(line => line.trim()))
   return [...lines].flatMap(line => {
     return isProbeTarget(line) ? [line] : []
+  })
+}
+
+/** Catalog order groups targets; saved order applies only within each group. */
+export function orderedCatalogTargets(catalog: ProbeCatalog, value: string): ProbeTarget[] {
+  const saved = parseProbeTargets(value)
+  return catalog.groups.flatMap(group => {
+    const ids = group.targets.map(target => target.id)
+    return [...saved.filter(id => ids.some(target => target === id)), ...ids.filter(id => !saved.includes(id))]
   })
 }
 
@@ -20,6 +29,7 @@ export interface ProbeDisplayMetric {
 
 export interface ProbeDisplayRow {
   target: ProbeTarget
+  group: string | null
   label: string
   latency: ProbeDisplayMetric
   loss: ProbeDisplayMetric
@@ -47,17 +57,24 @@ export function probeDisplayMetric(
 }
 
 export function probeDisplayRows(
-  server: Pick<GlassServer, 'latency' | 'history'>,
-  targets: string, mode: 'single' | 'multiple', hours: 1 | 2, now: number,
+  server: Pick<GlassServer, 'latency' | 'history'> & Partial<Pick<GlassServer, 'probeCatalog' | 'connectivity'>>,
+  targets: string, mode: 'single' | 'multiple', hours: 1 | 2, now: number, selectionMode: 'auto' | 'manual' = 'auto',
 ): ProbeDisplayRow[] {
   const defaults = PROBE_TARGETS.join('\n')
-  const ordered = targets === defaults ? [...parseProbeTargets(targets), ...server.latency.filter(metric => isDynamicProbeTarget(metric.target)).map(metric => metric.target)] : parseProbeTargets(targets)
+  const catalog = server.probeCatalog?.enabled ? server.probeCatalog : undefined
+  const eligible = catalog?.groups.filter(group => group.family === 'auto'
+    ? server.connectivity?.ipv4 !== '0' || server.connectivity?.ipv6 !== '0'
+    : server.connectivity?.[group.family] !== '0').flatMap(group => group.targets.map(target => target.id))
+  const ordered = catalog
+    ? orderedCatalogTargets(catalog, targets).filter(target => eligible?.some(id => id === target) && (selectionMode === 'auto' || parseProbeTargets(targets).includes(target)))
+    : targets === defaults ? [...parseProbeTargets(targets), ...server.latency.filter(metric => isDynamicProbeTarget(metric.target)).map(metric => metric.target)] : parseProbeTargets(targets)
   const selected = ordered.flatMap(target => {
     const metric = server.latency.find(item => item.target === target)
     return metric ? [metric] : []
   })
   return (mode === 'single' ? selected.slice(0, 1) : selected).map(metric => ({
     target: metric.target,
+    group: catalog?.groups.find(group => group.targets.some(target => target.id === metric.target))?.name ?? null,
     label: metric.label,
     latency: probeDisplayMetric(server.history.latencySeries[metric.target] ?? [], metric.target, metric.latency, hours, now),
     loss: probeDisplayMetric(server.history.packetLossSeries[metric.target] ?? [], metric.target, metric.packetLoss, hours, now),

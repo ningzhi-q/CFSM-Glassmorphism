@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PROBE_TARGETS } from '@/constants/probes'
 import { activeProbeTargets, labeledProbeTargets } from '@/domain/server-detail'
-import { parseProbeTargets, probeDisplayRows } from '@/domain/probe-display'
+import { orderedCatalogTargets, parseProbeTargets, probeDisplayRows } from '@/domain/probe-display'
 import { normalizeHistory, normalizeServer, normalizeSiteConfig, mergeRealtimeSample } from '@/services/cfsm/adapters'
 import { apiSource } from '@/services/cfsm/config'
 import { toGlassServer } from '@/services/cfsm/glassmorphism-adapter'
@@ -47,7 +47,7 @@ describe('动态 Ping 协议与显示', () => {
     const glass = toGlassServer(a, configA)
     const rows = probeDisplayRows(glass, PROBE_TARGETS.join('\n'), 'multiple', 1, ts)
     expect(rows.some(row => row.target === 'p_17')).toBe(true)
-    expect(probeDisplayRows(glass, '', 'multiple', 1, ts)).toEqual([])
+    expect(probeDisplayRows(glass, '', 'multiple', 1, ts, 'manual')).toEqual([])
     expect(parseProbeTargets('p_17\np_0\np_17\np_bad.id')).toEqual(['p_17', 'p_0'])
     const b = toGlassServer(normalizeServer({ id: 'same-id', timestamp: ts, probes }, apiSource('https://secondary.example'), ts), configB)
     expect(b.latency.find(t => t.target === 'p_0')?.label).toBe('副站线路')
@@ -59,5 +59,36 @@ describe('动态 Ping 协议与显示', () => {
     expect(dynamicProbeValues({ p_invalid: { ts, latency: '0', loss: 101 } }, 'ping')).toEqual({ p_invalid: false })
     const invalid = normalizeSiteConfig({ probe_catalog: { enabled: true, groups: [{ id: 'invalid', name: 'bad', family: 'ipv4', targets: [] }] } })
     expect(invalid.probeCatalog?.groups).toEqual([])
+  })
+})
+
+
+describe('分组自动匹配与组内显示', () => {
+  const config = normalizeSiteConfig({ probe_catalog: { enabled: true, groups: [
+    { id: 'g_v4', name: 'IPv4', family: 'ipv4', targets: [{ id: 'p_a', name: '电信' }, { id: 'p_b', name: '联通' }] },
+    { id: 'g_v6', name: 'IPv6', family: 'ipv6', targets: [{ id: 'p_c', name: '电信' }, { id: 'p_d', name: '联通' }] },
+  ] } })
+  const samples = Object.fromEntries(['p_a', 'p_b', 'p_c', 'p_d'].map(id => [id, { ts, latency: 10, loss: 0 }]))
+  it('既有旧线路选择不会挡住自动模式，单栈只显示对应组、双栈显示两组', () => {
+    for (const [ip_v4, ip_v6, expected] of [
+      ['1', '0', ['p_a', 'p_b']], ['0', '1', ['p_c', 'p_d']], ['1', '1', ['p_a', 'p_b', 'p_c', 'p_d']], ['0', '0', []],
+    ] as const) {
+      const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ip_v4, ip_v6, probes: samples }, source, ts), config)
+      const rows = probeDisplayRows(glass, 'bd\nnode_1\nnode_2', 'multiple', 1, ts, 'auto')
+      expect(rows.map(row => row.target)).toEqual(expected)
+      expect(rows.every(row => row.group === (row.target === 'p_a' || row.target === 'p_b' ? 'IPv4' : 'IPv6'))).toBe(true)
+    }
+  })
+  it('排序保持组内独立，手动空选择仍能隐藏，已删除线路不被还原', () => {
+    const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ip_v4: '1', ip_v6: '1', probes: samples }, source, ts), config)
+    expect(config.probeCatalog).toBeDefined()
+    if (!config.probeCatalog) throw new Error('missing catalog')
+    expect(orderedCatalogTargets(config.probeCatalog, 'p_d\np_b\np_c\np_a\np_deleted')).toEqual(['p_b', 'p_a', 'p_d', 'p_c'])
+    expect(probeDisplayRows(glass, 'p_d\np_b', 'multiple', 1, ts, 'manual').map(row => row.target)).toEqual(['p_b', 'p_d'])
+    expect(probeDisplayRows(glass, '', 'multiple', 1, ts, 'manual')).toEqual([])
+  })
+  it('无动态目录的旧后端继续遵守显式旧线路选择', () => {
+    const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ping_bd: 10, loss_bd: 0 }, source, ts), normalizeSiteConfig({}))
+    expect(probeDisplayRows(glass, '', 'multiple', 1, ts, 'auto')).toEqual([])
   })
 })
