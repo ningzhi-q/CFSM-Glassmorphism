@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ServerCard from '@/components/dashboard/ServerCard.vue'
 import type { GlassServer } from '@/types/glassmorphism'
+import type { ProbeTarget } from '@/types/cfsm'
 import type { NodeCardSize } from '@/theme/settings'
 
 defineProps<{
@@ -19,7 +20,7 @@ defineProps<{
 }>()
 const emit = defineEmits<{
   open: [server: GlassServer]
-  probe: [server: GlassServer, metric: 'latency' | 'loss']
+  probe: [server: GlassServer, metric: 'latency' | 'loss', target: ProbeTarget]
   toggleFavorite: [key: string]
 }>()
 </script>
@@ -46,7 +47,7 @@ const emit = defineEmits<{
       :price-visible="priceVisible"
       :info-fields="infoFields"
       @open="emit('open', server)"
-      @probe="emit('probe', server, $event)"
+      @probe="(metric, target) => emit('probe', server, metric, target)"
       @toggle-favorite="emit('toggleFavorite', server.key)"
     />
   </div>

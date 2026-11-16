@@ -458,3 +458,7 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 ## v1.2.2 分组显示
 
 适配器把各节点所属 API base 的已验证 probeCatalog 与连通性一并交给 GlassServer。probe-display 按地址族过滤目录，按目录分组、按已存顺序排列组内目标；只使用真实采集结果。自动模式忽略旧八路勾选，手动模式保持显式空选择。设置组页签与详情图表页签分别展示各组目标，组内勾选和排序保留其他组状态。无新增请求或后台轮询。
+
+## v1.2.3 网络监测弹窗
+
+首页卡片向 HomeView 传递 metric 与 target，保留点击线路的身份；RetainedServerGrid 同样转发这两个参数。NodeProbeDialog 复用 probeDisplayRows 的自动匹配、手动选择和组内顺序，经 probeDisplayGroups 按目录目标 ID 分组。图表及统计只使用活动组，首次打开按点击目标选择组。AppDialog 的可选 toolbar/footer 插槽置于滚动 body 外，保留 reka-ui 的焦点与关闭行为。未增加请求或计时器。

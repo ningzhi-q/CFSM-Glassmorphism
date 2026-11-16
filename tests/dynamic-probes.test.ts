@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PROBE_TARGETS } from '@/constants/probes'
 import { activeProbeTargets, labeledProbeTargets } from '@/domain/server-detail'
-import { orderedCatalogTargets, parseProbeTargets, probeDisplayRows } from '@/domain/probe-display'
+import { orderedCatalogTargets, parseProbeTargets, probeDisplayRows, probeDisplayGroups } from '@/domain/probe-display'
 import { normalizeHistory, normalizeServer, normalizeSiteConfig, mergeRealtimeSample } from '@/services/cfsm/adapters'
 import { apiSource } from '@/services/cfsm/config'
 import { toGlassServer } from '@/services/cfsm/glassmorphism-adapter'
@@ -90,5 +90,32 @@ describe('分组自动匹配与组内显示', () => {
   it('无动态目录的旧后端继续遵守显式旧线路选择', () => {
     const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ping_bd: 10, loss_bd: 0 }, source, ts), normalizeSiteConfig({}))
     expect(probeDisplayRows(glass, '', 'multiple', 1, ts, 'auto')).toEqual([])
+  })
+
+  it('网络监测的同名线路按目标身份分组，旧八路不混入，IPv6 点击可定位所属组', () => {
+    const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ip_v4: '1', ip_v6: '1', ping_ct: 99, probes: samples }, source, ts), config)
+    const groups = probeDisplayGroups(glass.probeCatalog, probeDisplayRows(glass, 'bd\nnode_1', 'multiple', 2, ts, 'auto'))
+    expect(groups.map(group => [group.id, group.rows.map(row => row.target)])).toEqual([
+      ['g_v4', ['p_a', 'p_b']], ['g_v6', ['p_c', 'p_d']],
+    ])
+    expect(groups.find(group => group.rows.some(row => row.target === 'p_c'))?.id).toBe('g_v6')
+    expect(groups.flatMap(group => group.rows).some(row => row.target === 'ct')).toBe(false)
+  })
+
+  it('网络监测尊重组内手动选择与顺序，隐藏当前组不会借用另一个组或旧线路', () => {
+    const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ip_v4: '1', ip_v6: '1', probes: samples }, source, ts), config)
+    const groups = probeDisplayGroups(glass.probeCatalog, probeDisplayRows(glass, 'p_d\np_b\np_a', 'multiple', 2, ts, 'manual'))
+    expect(groups.map(group => [group.id, group.rows.map(row => row.target)])).toEqual([
+      ['g_v4', ['p_b', 'p_a']], ['g_v6', ['p_d']],
+    ])
+    expect(probeDisplayGroups(glass.probeCatalog, probeDisplayRows(glass, '', 'multiple', 2, ts, 'manual'))).toEqual([])
+    expect(probeDisplayGroups(glass.probeCatalog, probeDisplayRows(glass, 'ct', 'multiple', 2, ts, 'manual'))).toEqual([])
+  })
+
+  it('网络监测单栈仅有兼容组，旧后端用单一线路页签保留原选择', () => {
+    const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ip_v4: '0', ip_v6: '1', probes: samples }, source, ts), config)
+    expect(probeDisplayGroups(glass.probeCatalog, probeDisplayRows(glass, '', 'multiple', 2, ts, 'auto')).map(group => group.id)).toEqual(['g_v6'])
+    const legacy = toGlassServer(normalizeServer({ id: 'old', timestamp: ts, ping_ct: 10 }, source, ts), normalizeSiteConfig({}))
+    expect(probeDisplayGroups(undefined, probeDisplayRows(legacy, 'ct', 'multiple', 2, ts)).map(group => group.rows.map(row => row.target))).toEqual([['ct']])
   })
 })

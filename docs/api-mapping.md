@@ -233,3 +233,7 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 ## v1.2.2 分组显示契约
 
 公开 probe_catalog.groups[].targets 仍只含启用的目标 ID/名称，不接触实际地址。每台服务器使用其所属源的目录与 ip_v4/ip_v6 可达标志；主题 POST /api/theme_options 的完整快照新增 probeSelectionMode（auto/manual），probeTargets 存组内显示选择与顺序，不改变 Agent 探测配置。
+
+## v1.2.3 首页网络监测
+
+`/api/servers` 的已有两小时 `ping` / `loss` 窗口继续供应卡片与弹窗。弹窗复用所属 API base 的已验证 `probeCatalog`，按目标 ID 过滤当前组，遵循主题自动匹配与手动选择；不新增任何端点、请求或后台轮询。
