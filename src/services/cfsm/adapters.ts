@@ -1,3 +1,5 @@
+import { dynamicProbeValues, normalizeProbeCatalog } from './probes'
+import { isProbeTarget, isDynamicProbeTarget } from '@/constants/probes'
 import { splitProviderTags } from './provider-tags'
 import type {
   ApiSource,
@@ -117,6 +119,7 @@ function probeValues(value: Record<string, unknown>, prefix: 'ping' | 'loss'): P
     node_2: probeValue(value[`${prefix}_node_2`]),
     node_3: probeValue(value[`${prefix}_node_3`]),
     node_4: probeValue(value[`${prefix}_node_4`]),
+    ...dynamicProbeValues(value.probes, prefix),
   }
 }
 
@@ -135,10 +138,11 @@ function latencyWindow(value: unknown): LatencyWindowSample[] {
       if (!isRecord(entry)) return []
       const timestamp = numberValue(entry.ts)
       if (timestamp === null) return []
-      return [{
-        timestamp,
-        ...Object.fromEntries(PROBE_TARGETS.map((target) => [target, probeValue(entry[target])])),
-      } as LatencyWindowSample]
+      const probes: ProbeValues = { ct: false, cu: false, cm: false, bd: false, node_1: false, node_2: false, node_3: false, node_4: false }
+      for (const [target, value] of Object.entries(entry)) {
+        if (isProbeTarget(target)) probes[target] = probeValue(value)
+      }
+      return [{ timestamp, ...probes }]
     })
     .sort((left, right) => left.timestamp - right.timestamp)
 }
@@ -256,7 +260,9 @@ export function normalizeSiteConfig(value: unknown): SiteConfig {
     turnstileEnabled: booleanValue(input.turnstile_enabled),
     turnstileLoginEnabled: booleanValue(input.turnstile_login_enabled),
     turnstileSiteKey: stringValue(input.turnstile_site_key),
+    probeCatalog: normalizeProbeCatalog(input.probe_catalog),
     probeLabels: {
+      ...Object.fromEntries(normalizeProbeCatalog(input.probe_catalog).groups.flatMap(group => group.targets.map(target => [target.id, target.name]))),
       ct: stringValue(input.custom_ct_name) ?? DEFAULT_PROBE_LABELS.ct,
       cu: stringValue(input.custom_cu_name) ?? DEFAULT_PROBE_LABELS.cu,
       cm: stringValue(input.custom_cm_name) ?? DEFAULT_PROBE_LABELS.cm,
@@ -517,6 +523,20 @@ export function mergeRealtimeSample(
     if (lossKey in input && packetLoss[target] !== normalized.packetLoss[target]) {
       if (packetLoss === server.packetLoss) packetLoss = { ...packetLoss }
       packetLoss[target] = normalized.packetLoss[target]
+    }
+  }
+  if ('probes' in input) {
+    for (const target of new Set([...Object.keys(latency), ...Object.keys(packetLoss), ...Object.keys(normalized.latency)].filter(isDynamicProbeTarget))) {
+      const freshLatency = normalized.latency[target]
+      const freshLoss = normalized.packetLoss[target]
+      if (latency[target] !== freshLatency) {
+        if (latency === server.latency) latency = { ...latency }
+        if (freshLatency === undefined) delete latency[target]; else latency[target] = freshLatency
+      }
+      if (packetLoss[target] !== freshLoss) {
+        if (packetLoss === server.packetLoss) packetLoss = { ...packetLoss }
+        if (freshLoss === undefined) delete packetLoss[target]; else packetLoss[target] = freshLoss
+      }
     }
   }
   next.latency = latency

@@ -1,4 +1,4 @@
-import { PROBE_TARGETS } from '@/constants/probes'
+import { PROBE_TARGETS, isProbeTarget, isDynamicProbeTarget } from '@/constants/probes'
 import type { ProbeTarget, ProbeValue } from '@/types/cfsm'
 import type { GlassLatencySample, GlassServer } from '@/types/glassmorphism'
 import { normalizeTimestampMilliseconds } from '@/utils/format'
@@ -7,8 +7,7 @@ import { windowAverage } from './probe-window'
 export function parseProbeTargets(value: string): ProbeTarget[] {
   const lines = new Set(value.split(/\r?\n/).map(line => line.trim()))
   return [...lines].flatMap(line => {
-    const target = PROBE_TARGETS.find(target => target === line)
-    return target ? [target] : []
+    return isProbeTarget(line) ? [line] : []
   })
 }
 
@@ -51,7 +50,9 @@ export function probeDisplayRows(
   server: Pick<GlassServer, 'latency' | 'history'>,
   targets: string, mode: 'single' | 'multiple', hours: 1 | 2, now: number,
 ): ProbeDisplayRow[] {
-  const selected = parseProbeTargets(targets).flatMap(target => {
+  const defaults = PROBE_TARGETS.join('\n')
+  const ordered = targets === defaults ? [...parseProbeTargets(targets), ...server.latency.filter(metric => isDynamicProbeTarget(metric.target)).map(metric => metric.target)] : parseProbeTargets(targets)
+  const selected = ordered.flatMap(target => {
     const metric = server.latency.find(item => item.target === target)
     return metric ? [metric] : []
   })

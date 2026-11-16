@@ -2,14 +2,15 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Sortable, { type SortableEvent } from 'sortablejs'
 import AppIcon from '@/components/ui/AppIcon.vue'
-import { PROBE_TARGETS } from '@/constants/probes'
+import { PROBE_TARGETS, probeTargetsIn } from '@/constants/probes'
 import { parseProbeTargets } from '@/domain/probe-display'
-import type { ProbeLabels, ProbeTarget } from '@/types/cfsm'
+import type { ProbeCatalog, ProbeLabels, ProbeTarget } from '@/types/cfsm'
 
-const props = defineProps<{ modelValue: string; labels: Readonly<ProbeLabels> }>()
+const props = defineProps<{ modelValue: string; labels: Readonly<ProbeLabels>; catalog?: ProbeCatalog }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
-const selected = computed(() => parseProbeTargets(props.modelValue))
-const items = computed(() => [...selected.value, ...PROBE_TARGETS.filter(target => !selected.value.includes(target))])
+const available = computed(() => probeTargetsIn(props.labels))
+const selected = computed(() => props.modelValue === PROBE_TARGETS.join('\n') ? available.value : parseProbeTargets(props.modelValue))
+const items = computed(() => [...selected.value, ...available.value.filter(target => !selected.value.includes(target))])
 const list = ref<HTMLOListElement | null>(null)
 const dragging = ref(false)
 const announcement = ref('')
@@ -25,6 +26,11 @@ function update(next: readonly ProbeTarget[]): void {
 function toggle(target: ProbeTarget): void {
   if (dragging.value) return
   update(selected.value.includes(target) ? selected.value.filter(item => item !== target) : [...selected.value, target])
+}
+
+function toggleGroup(targets: readonly ProbeTarget[]): void {
+  const remove = targets.every(target => selected.value.includes(target))
+  update(remove ? selected.value.filter(target => !targets.includes(target)) : [...new Set([...selected.value, ...targets])])
 }
 
 function move(target: ProbeTarget, direction: -1 | 1): void {
@@ -114,6 +120,15 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="probe-order-editor">
+    <div v-if="catalog?.enabled" class="probe-order-actions" aria-label="探测分组显示选择">
+      <button
+        v-for="group in catalog.groups" :key="group.id" type="button" class="settings-action" :disabled="dragging"
+        :aria-pressed="group.targets.length > 0 && group.targets.every(target => selected.includes(target.id))"
+        @click="toggleGroup(group.targets.map(target => target.id))"
+      >
+        {{ group.name }}
+      </button>
+    </div>
     <ol ref="list" class="probe-order-list" :class="{ 'is-dragging': dragging }" aria-label="探测线路显示顺序">
       <li v-for="target in items" :key="target" :class="{ 'is-selected': selected.includes(target) }" :data-probe-target="target">
         <button type="button" class="probe-order-handle" :disabled="!selected.includes(target)" :aria-label="`拖动 ${labels[target]}，也可用上下方向键调整`" @keydown.up.prevent="move(target, -1)" @keydown.down.prevent="move(target, 1)">
@@ -135,7 +150,7 @@ onBeforeUnmount(() => {
     </ol>
     <span class="sr-only" role="status" aria-live="polite">{{ announcement }}</span>
     <div class="probe-order-actions">
-      <button type="button" class="settings-action" :disabled="dragging" @click="update(PROBE_TARGETS)">
+      <button type="button" class="settings-action" :disabled="dragging" @click="update(available)">
         恢复默认选择
       </button>
       <button type="button" class="settings-action" :disabled="dragging" @click="update([])">

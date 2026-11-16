@@ -81,6 +81,7 @@ const sourceConfigPending = computed(() => (
 const loading = computed(() => pingHistoryState.value === 'loading' || sourceConfigPending.value)
 const errorCopy = computed(() => issueCopy(pingHistoryIssue.value, 'history'))
 const selected = ref<ProbeTarget[]>([])
+const selectionTouched = ref(false)
 /* 开关状态只活在本组件的生命周期里；实时推送、主题切换与重绘都不会重置它。 */
 const hideSpikes = ref(false)
 /* 图例的显示状态。显式交给图表，按钮上的计数才能与画出来的线保持一致。 */
@@ -98,6 +99,7 @@ const rangeModel = computed({
     if (hours === undefined || hours === pingHistoryHours.value) return
     // 上游切换视图时先清空选择，数据回来后再全选。
     selected.value = []
+    selectionTouched.value = false
     void detail.loadPingHistory(hours)
   },
 })
@@ -117,18 +119,33 @@ const tasks = computed<PingTask[]>(() => {
 })
 const selectedTasks = computed(() => tasks.value.filter((task) => selected.value.includes(task.target)))
 const allSelected = computed(() => tasks.value.every((task) => selected.value.includes(task.target)))
+const taskGroups = computed(() => (sourceConfig.value?.probeCatalog?.groups ?? []).flatMap(group => {
+  const targets = tasks.value.filter(task => group.targets.some(target => target.id === task.target)).map(task => task.target)
+  return targets.length ? [{ ...group, targets }] : []
+}))
+
+function toggleGroup(targets: readonly ProbeTarget[]): void {
+  selectionTouched.value = true
+  const remove = targets.every(target => selected.value.includes(target))
+  selected.value = remove ? selected.value.filter(target => !targets.includes(target)) : [...new Set([...selected.value, ...targets])]
+}
 
 watch(() => (server.value ? `${server.value.source.base}::${server.value.id}` : ''), () => {
   selected.value = []
+  selectionTouched.value = false
   openTip.value = null
   helpOpen.value = false
 })
 /*
- * 上游在每次取回数据后、选择为空时全选。这里只跟随历史数据本身变化，
- * 不跟随实时快照：否则用户点了「全不选」，下一次 WebSocket 推送又会全选回来。
+ * 切换服务器或新目标出现时恢复默认选择；用户手动选择后仅移除消失的目标。
+ * 「全不选」不会被实时快照或历史返回覆盖。
  */
-watch([pingHistoryPoints, sourceConfigState], () => {
-  if (selected.value.length === 0) selected.value = tasks.value.map((task) => task.target)
+watch([
+  () => (server.value ? `${server.value.source.base}::${server.value.id}` : ''),
+  () => tasks.value.map(task => task.target).join('\n'),
+], () => {
+  if (!selectionTouched.value) selected.value = tasks.value.map(task => task.target)
+  else selected.value = selected.value.filter(target => tasks.value.some(task => task.target === target))
 }, { immediate: true })
 
 function isSelected(target: ProbeTarget): boolean {
@@ -136,16 +153,19 @@ function isSelected(target: ProbeTarget): boolean {
 }
 
 function toggleTask(target: ProbeTarget): void {
+  selectionTouched.value = true
   selected.value = isSelected(target)
     ? selected.value.filter((item) => item !== target)
     : [...selected.value, target]
 }
 
 function showAll(): void {
+  selectionTouched.value = true
   selected.value = tasks.value.map((task) => task.target)
 }
 
 function hideAll(): void {
+  selectionTouched.value = true
   selected.value = []
 }
 
@@ -273,6 +293,16 @@ function retry(): void {
       <AppEmpty v-else-if="tasks.length === 0 && !loading" description="暂无延迟数据" />
 
       <div v-else class="ping-chart__content">
+        <div v-if="taskGroups.length" class="ping-chart__actions ping-chart__groups" aria-label="Ping 节点分组">
+          <button
+            v-for="group in taskGroups" :key="group.id" type="button" class="ping-chart__button"
+            :class="{ 'is-active': group.targets.every(target => isSelected(target)) }"
+            :aria-pressed="group.targets.every(target => isSelected(target))"
+            @click="toggleGroup(group.targets)"
+          >
+            {{ group.name }} · {{ group.targets.length }}
+          </button>
+        </div>
         <div v-if="tasks.length > 0" class="ping-task-grid">
           <div
             v-for="task in tasks"
@@ -406,3 +436,7 @@ function retry(): void {
     </div>
   </section>
 </template>
+
+<style scoped>
+.ping-chart__groups { justify-content: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
+</style>

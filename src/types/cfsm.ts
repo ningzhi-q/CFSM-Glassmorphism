@@ -2,7 +2,8 @@ export type NullableNumber = number | null
 export type Reachability = '0' | '1' | null
 export type LatencyCarrier = 'ct' | 'cu' | 'cm' | 'bd'
 export type ProbeNode = 'node_1' | 'node_2' | 'node_3' | 'node_4'
-export type ProbeTarget = LatencyCarrier | ProbeNode
+export type DynamicProbeTarget = `p_${string}`
+export type ProbeTarget = LatencyCarrier | ProbeNode | DynamicProbeTarget
 export type ProbeValue = number | null | false
 
 export interface ApiSource {
@@ -13,6 +14,16 @@ export interface ApiSource {
 export type LatencyValues = Record<LatencyCarrier, ProbeValue>
 export type ProbeValues = Record<ProbeTarget, ProbeValue>
 export type ProbeLabels = Record<ProbeTarget, string>
+
+export interface ProbeCatalog {
+  enabled: boolean
+  groups: Array<{
+    id: string
+    name: string
+    family: 'ipv4' | 'ipv6' | 'auto'
+    targets: Array<{ id: DynamicProbeTarget, name: string }>
+  }>
+}
 
 /**
  * `/api/servers` 的 `servers[].ping` / `servers[].loss` 单个采样点。
@@ -157,6 +168,7 @@ export interface SiteConfig {
   turnstileLoginEnabled: boolean
   turnstileSiteKey: string | null
   probeLabels: ProbeLabels
+  probeCatalog?: ProbeCatalog
   siteTitle: string
   preferredTheme: 'auto' | 'dark' | 'light'
   defaultLanguage: 'auto' | 'zh' | 'en'

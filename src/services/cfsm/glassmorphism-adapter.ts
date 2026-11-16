@@ -6,7 +6,7 @@ import type {
   ProbeLabels,
   SiteConfig,
 } from '@/types/cfsm'
-import { DEFAULT_PROBE_LABELS, PROBE_TARGETS } from '@/constants/probes'
+import { DEFAULT_PROBE_LABELS, probeTargetsIn } from '@/constants/probes'
 import { splitLocationTags } from './location-tags'
 import type {
   GlassLatencySample,
@@ -19,7 +19,8 @@ function finiteNonNegative(value: number | null): number | null {
   return value !== null && Number.isFinite(value) && value >= 0 ? value : null
 }
 
-function probeMetric(value: ProbeValue): ProbeValue {
+function probeMetric(value: ProbeValue | undefined): ProbeValue {
+  if (value === undefined) return false
   if (value === false || value === null) return value
   return finiteNonNegative(value) ?? false
 }
@@ -44,7 +45,7 @@ function probeSeries(
   const cached = windowCache.get(window)
   if (cached) return cached
   const series: Partial<Record<ProbeTarget, GlassLatencySample[]>> = {}
-  for (const target of PROBE_TARGETS) {
+  for (const target of probeTargetsIn(...window)) {
     const points = window.map((sample) => ({
       timestamp: sample.timestamp,
       value: probeMetric(sample[target]),
@@ -60,12 +61,12 @@ function probeSeries(
 function latestProbes(server: CfsmServer, labels: ProbeLabels): GlassLatencyMetric[] {
   const cached = latestCache.get(server.latency)
   if (cached?.packetLoss === server.packetLoss && cached.labels === labels) return cached.value
-  const value = PROBE_TARGETS.flatMap((target) => {
+  const value = probeTargetsIn(server.latency, server.packetLoss).flatMap((target) => {
     const latency = probeMetric(server.latency[target])
     const packetLossValue = probeMetric(server.packetLoss[target])
     const packetLoss = typeof packetLossValue === 'number' ? Math.min(packetLossValue, 100) : packetLossValue
     if (latency === false && packetLoss === false) return []
-    return [{ target, label: labels[target], latency, packetLoss }]
+    return [{ target, label: labels[target] ?? target, latency, packetLoss }]
   })
   latestCache.set(server.latency, { packetLoss: server.packetLoss, labels, value })
   return value
