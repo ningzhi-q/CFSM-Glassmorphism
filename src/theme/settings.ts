@@ -25,6 +25,8 @@ export interface ThemeSettings {
   groupOrder: string
   probeDisplayMode: 'single' | 'multiple'
   probeSelectionMode: 'auto' | 'manual'
+  probeDefaultFamily: 'auto' | 'ipv4' | 'ipv6'
+  hideProbeGroupNames: boolean
   probeTargets: string
   probeWindowHours: 1 | 2
   alertEnabled: boolean
@@ -82,6 +84,8 @@ export const THEME_SETTING_KEYS = [
   'groupOrder',
   'probeDisplayMode',
   'probeSelectionMode',
+  'probeDefaultFamily',
+  'hideProbeGroupNames',
   'probeTargets',
   'probeWindowHours',
   'alertEnabled',
@@ -168,6 +172,8 @@ export const DEFAULT_THEME_SETTINGS: Readonly<ThemeSettings> = Object.freeze({
   groupOrder: '',
   probeDisplayMode: 'single',
   probeSelectionMode: 'auto',
+  probeDefaultFamily: 'auto',
+  hideProbeGroupNames: false,
   probeTargets: PROBE_TARGETS.join('\n'),
   probeWindowHours: 2,
   alertEnabled: false,
@@ -424,6 +430,8 @@ export function normalizeThemeSettingsLayer(
     groupOrder: typeof input.groupOrder === 'string' ? parseGroupOrder(input.groupOrder).join('\n') : fallback.groupOrder,
     probeDisplayMode: oneOf(input.probeDisplayMode, ['single', 'multiple'], fallback.probeDisplayMode),
     probeSelectionMode: oneOf(input.probeSelectionMode, ['auto', 'manual'], fallback.probeSelectionMode),
+    probeDefaultFamily: oneOf(input.probeDefaultFamily, ['auto', 'ipv4', 'ipv6'], fallback.probeDefaultFamily),
+    hideProbeGroupNames: booleanValue(input.hideProbeGroupNames, fallback.hideProbeGroupNames),
     probeTargets: typeof input.probeTargets === 'string' ? parseProbeTargets(input.probeTargets).join('\n') : fallback.probeTargets,
     probeWindowHours: input.probeWindowHours === 1 || input.probeWindowHours === 2 ? input.probeWindowHours : fallback.probeWindowHours,
     alertEnabled: booleanValue(input.alertEnabled, fallback.alertEnabled),
@@ -496,6 +504,8 @@ export function serializeThemeSettings(settings: ThemeSettings): Record<string, 
     groupOrder: settings.groupOrder,
     probeDisplayMode: settings.probeDisplayMode,
     probeSelectionMode: settings.probeSelectionMode,
+    probeDefaultFamily: settings.probeDefaultFamily,
+    hideProbeGroupNames: settings.hideProbeGroupNames,
     probeTargets: settings.probeTargets,
     probeWindowHours: settings.probeWindowHours,
     alertEnabled: settings.alertEnabled,

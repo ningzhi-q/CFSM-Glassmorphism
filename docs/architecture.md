@@ -462,3 +462,8 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 ## v1.2.3 网络监测弹窗
 
 首页卡片向 HomeView 传递 metric 与 target，保留点击线路的身份；RetainedServerGrid 同样转发这两个参数。NodeProbeDialog 复用 probeDisplayRows 的自动匹配、手动选择和组内顺序，经 probeDisplayGroups 按目录目标 ID 分组。图表及统计只使用活动组，首次打开按点击目标选择组。AppDialog 的可选 toolbar/footer 插槽置于滚动 body 外，保留 reka-ui 的焦点与关闭行为。未增加请求或计时器。
+
+
+## v1.2.4 默认分组与完整监测
+
+probeDisplayRows 处理卡片地址族偏好及选择，probeDialogRows 则构建完整目录，包括未采集的 null 线路。两条 HomeView 渲染路径与 retained grid 的 props/memo 同步新设置。不增加请求、历史范围或 Agent 任务。

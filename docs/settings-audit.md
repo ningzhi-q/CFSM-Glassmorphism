@@ -50,3 +50,8 @@
 ## v1.2.3 网络监测入口
 
 首页网络监测弹窗遵循已有 probeSelectionMode 与 probeTargets，分别负责自动匹配／手动选择以及组内顺序；probeDisplayMode 的单行／多行只控制卡片，弹窗可查看当前组全部已选线路。完整主题快照仍为 54 项。
+
+
+## v1.2.4 默认分组与完整监测
+
+新增 probeDefaultFamily 与 hideProbeGroupNames，进入 defaults/backend/local 三层及完整 56 项快照。默认 auto／false；只影响首页。弹窗忽略首页勾选与首选族，保留完整目录及组内排序。

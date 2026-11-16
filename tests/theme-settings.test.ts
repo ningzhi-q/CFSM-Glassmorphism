@@ -64,8 +64,8 @@ describe('theme settings schema', () => {
   })
 
   it('normalizes the 48 upstream fields and custom display fields across three layers', () => {
-    expect(THEME_SETTING_KEYS).toHaveLength(54)
-    expect(Object.keys(createThemeOptionsSnapshot(resolveThemeSettings({}, {})))).toHaveLength(54)
+    expect(THEME_SETTING_KEYS).toHaveLength(56)
+    expect(Object.keys(createThemeOptionsSnapshot(resolveThemeSettings({}, {})))).toHaveLength(56)
     const backend = {
       themeMode: 'dark',
       offlineNodesLast: false,
@@ -610,3 +610,12 @@ it('自动分组设置默认开启，完整快照保存显式手动选择', () =
   expect(snapshot.probeSelectionMode).toBe('manual')
   expect(snapshot.probeTargets).toBe('p_a\np_b')
 })
+
+
+it('default probe family and group label visibility resolve through three layers', () => {
+ const runtime = resolveThemeSettings({probeDefaultFamily: 'ipv6', hideProbeGroupNames: false}, {hideProbeGroupNames: true});
+ expect(runtime.probeDefaultFamily).toBe('ipv6');
+ expect(runtime.hideProbeGroupNames).toBe(true);
+ expect(createThemeOptionsSnapshot(runtime)).toMatchObject({probeDefaultFamily: 'ipv6', hideProbeGroupNames: true});
+ expect(resolveThemeSettings({probeDefaultFamily: 'bad'}, {}).probeDefaultFamily).toBe('auto');
+});

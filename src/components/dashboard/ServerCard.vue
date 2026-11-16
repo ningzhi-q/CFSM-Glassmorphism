@@ -60,6 +60,8 @@ const props = withDefaults(defineProps<{
   infoFields?: string
   probeDisplayMode?: 'single' | 'multiple'
   probeSelectionMode?: 'auto' | 'manual'
+  probeDefaultFamily?: 'auto' | 'ipv4' | 'ipv6'
+  hideProbeGroupNames?: boolean
   probeTargets?: string
   probeWindowHours?: 1 | 2
   probeNow?: number
@@ -67,6 +69,8 @@ const props = withDefaults(defineProps<{
   probeDisplayMode: 'single',
   infoFields: DEFAULT_NODE_CARD_INFO_FIELDS,
   probeSelectionMode: 'auto',
+  probeDefaultFamily: 'auto',
+  hideProbeGroupNames: false,
   probeTargets: PROBE_TARGETS.join('\n'),
   probeWindowHours: 2,
   probeNow: () => Date.now(),
@@ -239,7 +243,7 @@ function buildBars(
 // Narrow reactive inputs so unchanged probe data does not rebuild every sample
 // and formatted timestamp when a new server object carries CPU/network metrics.
 const probeRows = computed(() => probeDisplayRows(
-  props.server, props.probeTargets, props.probeDisplayMode, props.probeWindowHours, props.probeNow, props.probeSelectionMode,
+  props.server, props.probeTargets, props.probeDisplayMode, props.probeWindowHours, props.probeNow, props.probeSelectionMode, props.probeDefaultFamily,
 ).map(row => ({
   target: row.target,
   group: row.group,
@@ -467,7 +471,7 @@ function hideMissingImage(event: Event): void {
 
       <div v-if="probeRows.length" class="node-probe-rows">
         <template v-for="(row, index) in probeRows" :key="row.target">
-          <div v-if="row.group && row.group !== probeRows[index - 1]?.group" class="node-probe-group">
+          <div v-if="!hideProbeGroupNames && row.group && row.group !== probeRows[index - 1]?.group" class="node-probe-group">
             {{ row.group }}
           </div>
           <div class="node-probes" :data-probe-target="row.target">

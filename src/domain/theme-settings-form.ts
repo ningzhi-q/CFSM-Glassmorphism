@@ -320,6 +320,15 @@ export const THEME_SETTINGS_FORM: readonly ThemeFieldGroup[] = [
         help: '自动选择对应地址族的全部分组线路；双栈同时显示 IPv4 与 IPv6。',
       },
       {
+        key: 'probeDefaultFamily', label: '默认展示分组', kind: 'select',
+        options: [{ value: 'auto', label: '自动匹配（双栈显示 IPv4 + IPv6）' }, { value: 'ipv4', label: '优先只显示 IPv4' }, { value: 'ipv6', label: '优先只显示 IPv6' }],
+        help: '首页使用所选地址族；单栈没有对应分组时显示可用分组。网络监测弹窗始终可查看全部分组线路。',
+      },
+      {
+        key: 'hideProbeGroupNames', label: '隐藏卡片探测分组名', kind: 'switch',
+        help: '隐藏卡片中的 IPv4 / IPv6 等分组标题，弹窗分组页签仍保留。',
+      },
+      {
         key: 'probeTargets', label: '分组线路与顺序', kind: 'probe-targets', wide: true,
         help: '切换分组查看各自线路，拖动或用上下按钮调整组内顺序。勾选与取消会切换为手动选择，不影响其他分组。',
         note: '这里显示主站线路名称；每张卡片使用其所属站点的真实线路名称。',

@@ -237,3 +237,8 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 ## v1.2.3 首页网络监测
 
 `/api/servers` 的已有两小时 `ping` / `loss` 窗口继续供应卡片与弹窗。弹窗复用所属 API base 的已验证 `probeCatalog`，按目标 ID 过滤当前组，遵循主题自动匹配与手动选择；不新增任何端点、请求或后台轮询。
+
+
+## v1.2.4 默认分组与完整监测
+
+仍仅使用现有公开 CFSM 端点；POST /api/theme_options 完整快照增为 56 项，新增 probeDefaultFamily 与 hideProbeGroupNames。无新主题管理端点。
