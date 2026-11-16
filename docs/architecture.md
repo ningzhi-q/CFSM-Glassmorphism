@@ -448,3 +448,9 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 `domain/node-card-info.ts` 定义可选键和白名单，`theme/settings.ts` 规范化三层设置及完整保存快照。首页普通和保留网格均传入该值并纳入 v-memo 依赖，隐藏中的节点重新显示时也使用最新选择。卡片从 normalized model 格式化数据，保持价格隐私和账单适用性。
 
 地图名单在内部滚动边界把单次纵向滚轮尚未消费的距离交给页面；横向操作和 Ctrl/Meta 缩放保持浏览器处理。返回顶部用 480ms 三次缓出逐帧滚动，用户滚轮、触摸、鼠标或键盘操作与组件卸载均取消动画；系统减少动态效果时直接到顶。
+
+## 动态 Ping
+
+`services/cfsm/probes.ts` 在 unknown 边界验证公开分组及样本；adapters 合并 REST/WS/历史，stores 维持来源归属，domain 决定显示目标，组件仅消费数据。默认旧目标列表附加实际动态目标，显式空列表保持隐藏。详情默认跟随可用目标，用户触碰选择后实时更新只移除消失目标；切换服务器重新恢复默认。
+
+后端按数据库 binding 执行一次幂等增列，服务器 selection 和历史 results 均为 JSON 文本。Agent 使用独立四 worker 探测，周期不重叠；DNS 按地址族缓存，配置变更清除旧快照，120 秒过期结果不重复报告。原八槽协议保留供旧 Agent 使用。

@@ -223,3 +223,9 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 ## 2026-11-10 · 首页交互反馈契约
 
 新增 `nodeCardInfoFields` 仅通过现有 `GET /api/config.theme_options` 读取，通过现有 `POST /api/theme_options` 完整快照保存；现在共 53 项。时钟和滚动交互没有网络请求，首页卡片仍来自所属 API Base 的公开数据。地图 IPapi.is／DB-IP 署名继续仅依据已经校验的 `location.city_source` 或 `location.subdivision_source`，不能给 Cloudflare、运营者填写或国家参考数据统一署名 IPapi.is。`/api/servers`、`/api/server`、`/api/history/all` 和 `/api/ws` 契约没有变化。
+
+## 动态 Ping（schema 8）
+
+公开站点配置 `probe_catalog` 返回 enabled 与 groups（id/name/family/targets），目标仅含 id/name，地址留在认证后台。family 为 ipv4、ipv6 或 auto。REST、详情、WS 和历史返回 `probes: { p_id: { ts, latency, loss } }`；ts 为毫秒。缺字段保留既有快照，显式对象替换动态目标，空对象清空。latency/loss 的 false、null、数字分别为关闭、无结果、真实值。
+
+认证后台保存 site_options.probe_catalog（含 address/enabled）与 servers.probe_selection（auto/manual、稳定目标 ID）。Agent schema 8 通过 POST 配置回复或 WSS 接收 URL 编码配置；schema 3–7 不接收动态字段。历史在 probe_results JSON 列保存采样时间，禁止把缓存结果改标为新探测。

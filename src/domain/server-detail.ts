@@ -1,4 +1,4 @@
-import { PROBE_TARGETS } from '@/constants/probes'
+import { probeTargetsIn } from '@/constants/probes'
 import type { CfsmServer, HistoryPoint, ProbeLabels, ProbeTarget, ProbeValue } from '@/types/cfsm'
 import { normalizeTimestampMilliseconds } from '@/utils/format'
 
@@ -148,7 +148,7 @@ export function labeledProbeTargets(
   labels: ProbeLabels,
 ): LabeledProbeTarget[] {
   return targets.map((target) => {
-    const label = labels[target]
+    const label = labels[target] ?? target
     const duplicated = targets.filter((other) => labels[other] === label).length > 1
     return { target, label: duplicated ? `${label} (${target})` : label }
   })
@@ -162,11 +162,12 @@ export function activeProbeTargets(
   server: CfsmServer,
   points: readonly HistoryPoint[],
 ): ProbeTarget[] {
-  return PROBE_TARGETS.filter((target) => (
-    server.latency[target] !== false
-    || server.packetLoss[target] !== false
+  return probeTargetsIn(server.latency, server.packetLoss, ...points.flatMap(point => [point.latency, point.packetLoss])).filter((target) => (
+    (server.latency[target] !== undefined && server.latency[target] !== false)
+    || (server.packetLoss[target] !== undefined && server.packetLoss[target] !== false)
     || points.some((point) => (
-      point.latency[target] !== false || point.packetLoss[target] !== false
+      (point.latency[target] !== undefined && point.latency[target] !== false)
+      || (point.packetLoss[target] !== undefined && point.packetLoss[target] !== false)
     ))
   ))
 }
