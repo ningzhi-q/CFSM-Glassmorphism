@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PROBE_TARGETS } from '@/constants/probes'
 import { activeProbeTargets, labeledProbeTargets } from '@/domain/server-detail'
-import { orderedCatalogTargets, parseProbeTargets, probeDisplayRows, probeDisplayGroups } from '@/domain/probe-display'
+import { orderedCatalogTargets, parseProbeTargets, probeDisplayRows, probeDisplayGroups, probeDialogRows } from '@/domain/probe-display'
 import { normalizeHistory, normalizeServer, normalizeSiteConfig, mergeRealtimeSample } from '@/services/cfsm/adapters'
 import { apiSource } from '@/services/cfsm/config'
 import { toGlassServer } from '@/services/cfsm/glassmorphism-adapter'
@@ -118,4 +118,18 @@ describe('分组自动匹配与组内显示', () => {
     const legacy = toGlassServer(normalizeServer({ id: 'old', timestamp: ts, ping_ct: 10 }, source, ts), normalizeSiteConfig({}))
     expect(probeDisplayGroups(undefined, probeDisplayRows(legacy, 'ct', 'multiple', 2, ts)).map(group => group.rows.map(row => row.target))).toEqual([['ct']])
   })
+  it('双栈卡片优先 IPv6，IPv4 单栈回退；弹窗保留各组全部线路', () => {
+    const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ip_v4: '1', ip_v6: '1', probes: samples }, source, ts), config)
+    expect(probeDisplayRows(glass, '', 'multiple', 2, ts, 'auto', 'ipv6').map(row => row.target)).toEqual(['p_c', 'p_d'])
+    expect(probeDisplayRows({ ...glass, connectivity: { ipv4: '1', ipv6: '0' } }, '', 'multiple', 2, ts, 'auto', 'ipv6').map(row => row.target)).toEqual(['p_a', 'p_b'])
+    const groups = probeDisplayGroups(glass.probeCatalog, probeDialogRows(glass, 'p_d', ts))
+    expect(groups.map(group => group.rows.map(row => row.target))).toEqual([['p_a', 'p_b'], ['p_d', 'p_c']])
+  })
+  it('弹窗未采集线路显示无数据，不能冒充零延迟或丢包', () => {
+    const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ip_v4: '1', ip_v6: '0', probes: {p_a: samples.p_a} }, source, ts), config)
+    const rows = probeDialogRows({ ...glass, latency: glass.latency.filter(row => row.target === 'p_a') }, '', ts)
+    expect(rows.map(row => row.target)).toEqual(['p_a', 'p_b', 'p_c', 'p_d'])
+    expect(rows.find(row => row.target === 'p_c')).toMatchObject({ latency: {value: null}, loss: {value: null} })
+  })
+
 })

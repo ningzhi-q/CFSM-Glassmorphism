@@ -5,7 +5,7 @@ import AppDialog from '@/components/ui/AppDialog.vue'
 import AppTabs from '@/components/ui/AppTabs.vue'
 import { metricSeriesChartOption, type MetricSeriesData } from '@/domain/detail-chart-options'
 import { probeChartPoints } from '@/domain/probe-window'
-import { probeDisplayGroups, probeDisplayRows } from '@/domain/probe-display'
+import { probeDisplayGroups, probeDialogRows } from '@/domain/probe-display'
 import { useThemeSettingsStore } from '@/stores/theme-settings'
 import type { GlassServer } from '@/types/glassmorphism'
 import type { ProbeTarget, ProbeValue } from '@/types/cfsm'
@@ -24,7 +24,7 @@ const theme = useThemeSettingsStore()
 const metric = ref<string>(props.initialMetric)
 const activeGroupId = ref('')
 const tabs = [{ value: 'latency', label: '延迟' }, { value: 'loss', label: '丢包' }]
-const rows = computed(() => probeDisplayRows(props.server, theme.runtime.probeTargets, 'multiple', 2, Date.now(), theme.runtime.probeSelectionMode))
+const rows = computed(() => probeDialogRows(props.server, theme.runtime.probeTargets, Date.now()))
 const groups = computed(() => probeDisplayGroups(props.server.probeCatalog, rows.value))
 const groupTabs = computed(() => groups.value.map(group => ({ value: group.id, label: group.label })))
 const activeGroup = computed(() => groups.value.find(group => group.id === activeGroupId.value) ?? groups.value[0])
