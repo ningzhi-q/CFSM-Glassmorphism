@@ -6163,3 +6163,6 @@ a {
   .search-field { width: 30px; min-width: 30px; height: 30px; }
   .search-field .app-icon { left: 8px; }
 }
+
+.node-probe-group { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.node-probe-empty { font-size: 11px; color: var(--muted); margin-top: 10px; }

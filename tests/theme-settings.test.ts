@@ -64,8 +64,8 @@ describe('theme settings schema', () => {
   })
 
   it('normalizes the 48 upstream fields and custom display fields across three layers', () => {
-    expect(THEME_SETTING_KEYS).toHaveLength(53)
-    expect(Object.keys(createThemeOptionsSnapshot(resolveThemeSettings({}, {})))).toHaveLength(53)
+    expect(THEME_SETTING_KEYS).toHaveLength(54)
+    expect(Object.keys(createThemeOptionsSnapshot(resolveThemeSettings({}, {})))).toHaveLength(54)
     const backend = {
       themeMode: 'dark',
       offlineNodesLast: false,
@@ -600,4 +600,13 @@ describe('data update interval bounds', () => {
   it('defaults to the floor rather than a value that can never run', () => {
     expect(resolveThemeSettings({}, {}).dataUpdateInterval).toBe(5)
   })
+})
+
+
+it('自动分组设置默认开启，完整快照保存显式手动选择', () => {
+  expect(resolveThemeSettings({}, {}).probeSelectionMode).toBe('auto')
+  const settings = resolveThemeSettings({ probeSelectionMode: 'manual', probeTargets: 'p_a\np_b' }, {})
+  const snapshot = createThemeOptionsSnapshot(settings)
+  expect(snapshot.probeSelectionMode).toBe('manual')
+  expect(snapshot.probeTargets).toBe('p_a\np_b')
 })

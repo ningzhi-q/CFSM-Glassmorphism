@@ -1,4 +1,4 @@
-import type { ProbeTarget, ProbeValue, ProviderTags, Reachability } from './cfsm'
+import type { ProbeCatalog, ProbeTarget, ProbeValue, ProviderTags, Reachability } from './cfsm'
 
 /** Validated coordinates from the backend or operator tags; independent of reachability flags. */
 export interface ServerLocation {
@@ -97,6 +97,7 @@ export interface GlassServer {
   latency: GlassLatencyMetric[]
   history: GlassHistorySummary
   gpus: GlassGpuMetric[]
+  probeCatalog?: ProbeCatalog
   connectivity: {
     ipv4: Reachability
     ipv6: Reachability

@@ -58,12 +58,14 @@ const props = withDefaults(defineProps<{
   priceVisible: boolean
   infoFields?: string
   probeDisplayMode?: 'single' | 'multiple'
+  probeSelectionMode?: 'auto' | 'manual'
   probeTargets?: string
   probeWindowHours?: 1 | 2
   probeNow?: number
 }>(), {
   probeDisplayMode: 'single',
   infoFields: DEFAULT_NODE_CARD_INFO_FIELDS,
+  probeSelectionMode: 'auto',
   probeTargets: PROBE_TARGETS.join('\n'),
   probeWindowHours: 2,
   probeNow: () => Date.now(),
@@ -235,13 +237,11 @@ function buildBars(
 
 // Narrow reactive inputs so unchanged probe data does not rebuild every sample
 // and formatted timestamp when a new server object carries CPU/network metrics.
-const probeLatency = computed(() => props.server.latency)
-const latencySeries = computed(() => props.server.history.latencySeries)
-const packetLossSeries = computed(() => props.server.history.packetLossSeries)
 const probeRows = computed(() => probeDisplayRows(
-  { latency: probeLatency.value, history: { latencySeries: latencySeries.value, packetLossSeries: packetLossSeries.value } }, props.probeTargets, props.probeDisplayMode, props.probeWindowHours, props.probeNow,
+  props.server, props.probeTargets, props.probeDisplayMode, props.probeWindowHours, props.probeNow, props.probeSelectionMode,
 ).map(row => ({
   target: row.target,
+  group: row.group,
   label: row.label,
   latencyText: formatLatency(row.latency.value),
   lossText: formatProbePercent(row.loss.value),
@@ -465,26 +465,34 @@ function hideMissingImage(event: Event): void {
       </div>
 
       <div v-if="probeRows.length" class="node-probe-rows">
-        <div v-for="row in probeRows" :key="row.target" class="node-probes" :data-probe-target="row.target">
-          <NodeProbePanel
-            metric="latency"
-            :label="row.label"
-            :value="row.latencyText"
-            :title="row.latencyTitle"
-            :accessible-label="`${server.name} ${row.label} 延迟监测`"
-            :bars="row.latencyBars"
-            @select="emit('probe', 'latency')"
-          />
-          <NodeProbePanel
-            metric="loss"
-            label="丢包"
-            :value="row.lossText"
-            :title="row.lossTitle"
-            :accessible-label="`${server.name} ${row.label} 丢包监测`"
-            :bars="row.lossBars"
-            @select="emit('probe', 'loss')"
-          />
-        </div>
+        <template v-for="(row, index) in probeRows" :key="row.target">
+          <div v-if="row.group && row.group !== probeRows[index - 1]?.group" class="node-probe-group">
+            {{ row.group }}
+          </div>
+          <div class="node-probes" :data-probe-target="row.target">
+            <NodeProbePanel
+              metric="latency"
+              :label="row.label"
+              :value="row.latencyText"
+              :title="row.latencyTitle"
+              :accessible-label="`${server.name} ${row.label} 延迟监测`"
+              :bars="row.latencyBars"
+              @select="emit('probe', 'latency')"
+            />
+            <NodeProbePanel
+              metric="loss"
+              label="丢包"
+              :value="row.lossText"
+              :title="row.lossTitle"
+              :accessible-label="`${server.name} ${row.label} 丢包监测`"
+              :bars="row.lossBars"
+              @select="emit('probe', 'loss')"
+            />
+          </div>
+        </template>
+      </div>
+      <div v-else-if="server.probeCatalog?.enabled && probeSelectionMode === 'auto'" class="node-probe-empty">
+        暂无分组探测数据
       </div>
       <div v-if="server.tags.length > 0" class="node-tags" aria-label="节点标签">
         <span v-for="tag in server.tags" :key="tag" class="node-tag">{{ tag }}</span>

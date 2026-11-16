@@ -98,10 +98,12 @@ const families = computed(() => resolveChartFamilies(theme.runtime))
 const probeTargets = computed(() => {
   const current = server.value
   if (!current || sourceConfigState.value === 'idle' || sourceConfigState.value === 'loading') return []
-  return labeledProbeTargets(
-    activeProbeTargets(current, historyPoints.value),
-    sourceConfig.value?.probeLabels ?? DEFAULT_PROBE_LABELS,
-  )
+  const active = activeProbeTargets(current, historyPoints.value)
+  const catalog = sourceConfig.value?.probeCatalog
+  const labels = sourceConfig.value?.probeLabels ?? DEFAULT_PROBE_LABELS
+  return catalog?.enabled ? catalog.groups.flatMap(group => labeledProbeTargets(
+    group.targets.map(target => target.id).filter(target => active.includes(target)), labels,
+  ).map(target => ({ ...target, label: `${group.name} · ${target.label}` }))) : labeledProbeTargets(active, labels)
 })
 const traffic = computed(() => trafficSeries(context.value))
 const pingSeries = computed(() => probeSeries(rows.value, probeTargets.value, 'latency', context.value.series, accessible.value))

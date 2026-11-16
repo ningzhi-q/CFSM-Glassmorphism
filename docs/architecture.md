@@ -454,3 +454,7 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 `services/cfsm/probes.ts` 在 unknown 边界验证公开分组及样本；adapters 合并 REST/WS/历史，stores 维持来源归属，domain 决定显示目标，组件仅消费数据。默认旧目标列表附加实际动态目标，显式空列表保持隐藏。详情默认跟随可用目标，用户触碰选择后实时更新只移除消失目标；切换服务器重新恢复默认。
 
 后端按数据库 binding 执行一次幂等增列，服务器 selection 和历史 results 均为 JSON 文本。Agent 使用独立四 worker 探测，周期不重叠；DNS 按地址族缓存，配置变更清除旧快照，120 秒过期结果不重复报告。原八槽协议保留供旧 Agent 使用。
+
+## v1.2.2 分组显示
+
+适配器把各节点所属 API base 的已验证 probeCatalog 与连通性一并交给 GlassServer。probe-display 按地址族过滤目录，按目录分组、按已存顺序排列组内目标；只使用真实采集结果。自动模式忽略旧八路勾选，手动模式保持显式空选择。设置组页签与详情图表页签分别展示各组目标，组内勾选和排序保留其他组状态。无新增请求或后台轮询。

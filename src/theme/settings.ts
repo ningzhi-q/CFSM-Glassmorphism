@@ -24,6 +24,7 @@ export interface ThemeSettings {
   nodeCardInfoFields: string
   groupOrder: string
   probeDisplayMode: 'single' | 'multiple'
+  probeSelectionMode: 'auto' | 'manual'
   probeTargets: string
   probeWindowHours: 1 | 2
   alertEnabled: boolean
@@ -80,6 +81,7 @@ export const THEME_SETTING_KEYS = [
   'nodeCardInfoFields',
   'groupOrder',
   'probeDisplayMode',
+  'probeSelectionMode',
   'probeTargets',
   'probeWindowHours',
   'alertEnabled',
@@ -165,6 +167,7 @@ export const DEFAULT_THEME_SETTINGS: Readonly<ThemeSettings> = Object.freeze({
   nodeCardInfoFields: DEFAULT_NODE_CARD_INFO_FIELDS,
   groupOrder: '',
   probeDisplayMode: 'single',
+  probeSelectionMode: 'auto',
   probeTargets: PROBE_TARGETS.join('\n'),
   probeWindowHours: 2,
   alertEnabled: false,
@@ -420,6 +423,7 @@ export function normalizeThemeSettingsLayer(
     nodeCardInfoFields: typeof input.nodeCardInfoFields === 'string' ? parseNodeCardInfoFields(input.nodeCardInfoFields).join(',') : fallback.nodeCardInfoFields,
     groupOrder: typeof input.groupOrder === 'string' ? parseGroupOrder(input.groupOrder).join('\n') : fallback.groupOrder,
     probeDisplayMode: oneOf(input.probeDisplayMode, ['single', 'multiple'], fallback.probeDisplayMode),
+    probeSelectionMode: oneOf(input.probeSelectionMode, ['auto', 'manual'], fallback.probeSelectionMode),
     probeTargets: typeof input.probeTargets === 'string' ? parseProbeTargets(input.probeTargets).join('\n') : fallback.probeTargets,
     probeWindowHours: input.probeWindowHours === 1 || input.probeWindowHours === 2 ? input.probeWindowHours : fallback.probeWindowHours,
     alertEnabled: booleanValue(input.alertEnabled, fallback.alertEnabled),
@@ -491,6 +495,7 @@ export function serializeThemeSettings(settings: ThemeSettings): Record<string, 
     nodeCardInfoFields: settings.nodeCardInfoFields,
     groupOrder: settings.groupOrder,
     probeDisplayMode: settings.probeDisplayMode,
+    probeSelectionMode: settings.probeSelectionMode,
     probeTargets: settings.probeTargets,
     probeWindowHours: settings.probeWindowHours,
     alertEnabled: settings.alertEnabled,

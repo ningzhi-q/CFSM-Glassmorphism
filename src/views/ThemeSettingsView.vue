@@ -333,7 +333,7 @@ watch(siteTitle, (title) => {
 
                   <div v-else-if="field.kind === 'probe-targets'" class="settings-field settings-field--wide">
                     <span>{{ field.label }}</span>
-                    <ProbeTargetOrder :model-value="theme.draft.probeTargets" :labels="app.config?.probeLabels ?? DEFAULT_PROBE_LABELS" :catalog="app.config?.probeCatalog" @update:model-value="setValue('probeTargets', $event)" />
+                    <ProbeTargetOrder :model-value="theme.draft.probeTargets" :selection-mode="theme.draft.probeSelectionMode" :labels="app.config?.probeLabels ?? DEFAULT_PROBE_LABELS" :catalog="app.config?.probeCatalog" @update:model-value="setValue('probeTargets', $event)" @update:selection-mode="setValue('probeSelectionMode', $event)" />
                     <small>{{ field.help }}</small>
                     <small class="settings-note">{{ field.note }}</small>
                   </div>
