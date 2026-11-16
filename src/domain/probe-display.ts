@@ -35,6 +35,21 @@ export interface ProbeDisplayRow {
   loss: ProbeDisplayMetric
 }
 
+export interface ProbeDisplayGroup {
+  id: string
+  label: string
+  rows: ProbeDisplayRow[]
+}
+
+/** Group by catalog identity: identical labels across families are separate targets. */
+export function probeDisplayGroups(catalog: ProbeCatalog | undefined, rows: ProbeDisplayRow[]): ProbeDisplayGroup[] {
+  if (!catalog?.enabled) return rows.length ? [{ id: '__all__', label: '探测线路', rows }] : []
+  return catalog.groups.flatMap(group => {
+    const members = rows.filter(row => group.targets.some(target => target.id === row.target))
+    return members.length ? [{ id: group.id, label: group.name, rows: members }] : []
+  })
+}
+
 /** 同一裁切序列用于色带与平均；空洞保留，窗口无有效值时不能冒充最新平均。 */
 export function probeDisplayMetric(
   raw: readonly GlassLatencySample[], target: ProbeTarget, latestValue: ProbeValue,

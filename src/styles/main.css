@@ -5712,6 +5712,7 @@ a {
 
 .app-dialog__header {
   display: flex;
+  flex-shrink: 0;
   align-items: flex-start;
   gap: 12px;
   padding: 12px 16px;
@@ -5767,6 +5768,14 @@ a {
   overflow-y: auto;
   padding: 16px;
 }
+
+.app-dialog__toolbar, .app-dialog__footer {
+  flex-shrink: 0;
+  padding: 10px 16px;
+}
+
+.app-dialog__toolbar { border-bottom: 1px solid var(--dialog-divider); }
+.app-dialog__footer { display: flex; justify-content: flex-end; border-top: 1px solid var(--dialog-divider); }
 
 .finance-dialog > * + * {
   margin-top: 16px;
@@ -6136,6 +6145,8 @@ a {
 .node-box--traffic .node-box__row:first-child .node-box__text { text-align: right; }
 .node-probe:focus-visible { outline: 2px solid var(--emerald); outline-offset: 2px; }
 .node-probe-dialog { display: flex; flex-direction: column; gap: 16px; }
+.node-probe-dialog__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.node-probe-dialog__detail { width: auto; min-height: 32px; margin-top: 0; padding: 4px 12px; }
 .node-probe-dialog__chart { height: 310px; min-width: 0; }
 .node-probe-dialog__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .node-probe-dialog__stats > div { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 8px; background: var(--glass-soft); }

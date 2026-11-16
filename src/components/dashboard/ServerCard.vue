@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { PROBE_TARGETS } from '@/constants/probes'
+import type { ProbeTarget } from '@/types/cfsm'
 import type { GlassServer, GlassLatencySample } from '@/types/glassmorphism'
 import type { NodeCardSize } from '@/theme/settings'
 import { DEFAULT_NODE_CARD_INFO_FIELDS, parseNodeCardInfoFields } from '@/domain/node-card-info'
@@ -74,7 +75,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   open: []
   toggleFavorite: []
-  probe: [metric: 'latency' | 'loss']
+  probe: [metric: 'latency' | 'loss', target: ProbeTarget]
 }>()
 
 const isMini = computed(() => props.density === 'mini')
@@ -477,7 +478,7 @@ function hideMissingImage(event: Event): void {
               :title="row.latencyTitle"
               :accessible-label="`${server.name} ${row.label} 延迟监测`"
               :bars="row.latencyBars"
-              @select="emit('probe', 'latency')"
+              @select="emit('probe', 'latency', row.target)"
             />
             <NodeProbePanel
               metric="loss"
@@ -486,7 +487,7 @@ function hideMissingImage(event: Event): void {
               :title="row.lossTitle"
               :accessible-label="`${server.name} ${row.label} 丢包监测`"
               :bars="row.lossBars"
-              @select="emit('probe', 'loss')"
+              @select="emit('probe', 'loss', row.target)"
             />
           </div>
         </template>

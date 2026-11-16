@@ -44,8 +44,14 @@ const open = defineModel<boolean>('open', { required: true })
             </button>
           </DialogClose>
         </div>
+        <div v-if="$slots.toolbar" class="app-dialog__toolbar">
+          <slot name="toolbar" />
+        </div>
         <div class="app-dialog__body">
           <slot />
+        </div>
+        <div v-if="$slots.footer" class="app-dialog__footer">
+          <slot name="footer" />
         </div>
       </DialogContent>
     </DialogPortal>

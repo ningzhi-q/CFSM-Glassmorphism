@@ -2,6 +2,7 @@
 import { computed, defineAsyncComponent, inject, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useNow } from '@vueuse/core'
+import type { ProbeTarget } from '@/types/cfsm'
 import { useRouter } from 'vue-router'
 import AppHeader from '@/components/dashboard/AppHeader.vue'
 import AdvancedTools from '@/components/dashboard/AdvancedTools.vue'
@@ -61,10 +62,12 @@ const NodeProbeDialog = defineAsyncComponent(() => import('@/components/dashboar
 const probeServerKey = ref<string | null>(null)
 const probeDialogOpen = ref(false)
 const probeMetric = ref<'latency' | 'loss'>('latency')
+const probeTarget = ref<ProbeTarget>()
 const probeServer = computed(() => glassServers.value.find(server => server.key === probeServerKey.value) ?? null)
-function openProbe(server: GlassServer, metric: 'latency' | 'loss'): void {
+function openProbe(server: GlassServer, metric: 'latency' | 'loss', target: ProbeTarget): void {
   probeServerKey.value = server.key
   probeMetric.value = metric
+  probeTarget.value = target
   probeDialogOpen.value = true
 }
 const glassServerMapper = createGlassServerMapper()
@@ -655,7 +658,7 @@ onUnmounted(() => realtime.stop())
                 :info-fields="theme.runtime.nodeCardInfoFields"
                 :style="cardTransition ? cardStyle(index) : undefined"
                 @open="openServer(server)"
-                @probe="openProbe(server, $event)"
+                @probe="(metric, target) => openProbe(server, metric, target)"
                 @toggle-favorite="preferences.toggleFavorite(server.key)"
               />
             </TransitionGroup>
@@ -685,6 +688,7 @@ onUnmounted(() => realtime.stop())
         v-model:open="probeDialogOpen"
         :server="probeServer"
         :initial-metric="probeMetric"
+        :initial-target="probeTarget"
         @detail="probeDialogOpen = false; openServer(probeServer)"
       />
     </div>
