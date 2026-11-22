@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { normalizeServer, toGlassServer } from '@/services/cfsm'
 import { apiSource } from '@/services/cfsm/config'
 import { splitLocationTags } from '@/services/cfsm/location-tags'
-import { buildEarthPoints, serverMapLocation } from '@/domain/advanced-tools'
+import { buildEarthPoints, serverCityText, serverMapLocation } from '@/domain/advanced-tools'
 import { filterServers, summarizeServers } from '@/domain/dashboard'
 import { useDashboardViewStore } from '@/stores/dashboard-view'
 import { countryName } from '@/utils/country-name'
@@ -92,6 +92,14 @@ describe('backend automatic IP location', () => {
     expect(serverMapLocation(node)).toMatchObject({ code: 'JP', city: 'Tokyo', source: 'cloudflare-ip' })
     expect(buildEarthPoints([node])[0]?.region).toBe('东京')
     expect(node.tags).toEqual([])
+  })
+
+  it('explicitly displays the reported Singapore city without inventing a district', () => {
+    const node = toGlassServer(normalizeServer({ id: 'singapore', region: 'SG', location: { ...reported, latitude: 1.28967, longitude: 103.85007, country: 'SG', city: 'Singapore' } }, source), null)
+    expect(serverCityText(node)).toBe('城市：新加坡')
+    expect(serverMapLocation(node)?.subdivision).toBeUndefined()
+    const unknown = toGlassServer(normalizeServer({ id: 'unknown', region: 'SG' }, source), null)
+    expect(serverCityText(unknown)).toBe('城市未提供 · 新加坡')
   })
 
   it('prefers automatic data to legacy tags, while preserving an explicit operator location', () => {
