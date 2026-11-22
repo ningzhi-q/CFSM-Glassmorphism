@@ -467,3 +467,7 @@ ServerCard 使用 server.key 作为 TransitionGroup 子项 key；快捷筛选、
 ## v1.2.4 默认分组与完整监测
 
 probeDisplayRows 处理卡片地址族偏好及选择，probeDialogRows 则构建完整目录，包括未采集的 null 线路。两条 HomeView 渲染路径与 retained grid 的 props/memo 同步新设置。不增加请求、历史范围或 Agent 任务。
+
+## v1.2.5 首选分组与城市状态
+
+probeDisplayRows 先计算兼容组，再检查实际 metric 身份和手动可见性，最后选择首选族或回退组。弹窗 all 模式仍展示完整目录。serverCityText 对具有真实新加坡城市的节点明确标注城市；无 location.city 时仍呈现未提供状态。

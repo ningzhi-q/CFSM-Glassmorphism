@@ -131,6 +131,9 @@ export function serverCityText(server: GlassServer): string {
   const locality = location.subdivision || location.city
   if (!locality) return `城市未提供 · ${country}`
   const city = formatCityNameZh(locality, location.code, location)
+  // Singapore's city/country names coincide. Explicitly identify its reported
+  // city so it cannot look like the country-only fallback.
+  if (location.code === 'SG' && !location.subdivision && city === country) return `城市：${city}`
   return locationTitle(city || '城市译名待补充', location.code)
 }
 

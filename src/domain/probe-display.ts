@@ -81,10 +81,16 @@ export function probeDisplayRows(
   const compatible = catalog?.groups.filter(group => group.family === 'auto'
     ? server.connectivity?.ipv4 !== '0' || server.connectivity?.ipv6 !== '0'
     : server.connectivity?.[group.family] !== '0')
-  const preferred = compatible?.filter(group => group.family === defaultFamily)
-  const eligible = (defaultFamily !== 'auto' && preferred?.length ? preferred : compatible)?.flatMap(group => group.targets.map(target => target.id))
+  const selectedTargets = new Set(parseProbeTargets(targets))
+  const reportedTargets = new Set(server.latency.map(metric => metric.target))
+  // Prefer a family only when it has configured, visible targets. Reachability
+  // alone does not mean the administrator enabled probes for that family.
+  const available = compatible?.filter(group => group.targets.some(target =>
+    reportedTargets.has(target.id) && (selectionMode !== 'manual' || selectedTargets.has(target.id))))
+  const preferred = available?.filter(group => group.family === defaultFamily)
+  const eligible = (defaultFamily !== 'auto' && preferred?.length ? preferred : available)?.flatMap(group => group.targets.map(target => target.id))
   const ordered = catalog
-    ? orderedCatalogTargets(catalog, targets).filter(target => selectionMode === 'all' || (eligible?.some(id => id === target) && (selectionMode === 'auto' || parseProbeTargets(targets).includes(target))))
+    ? orderedCatalogTargets(catalog, targets).filter(target => selectionMode === 'all' || (eligible?.some(id => id === target) && (selectionMode === 'auto' || selectedTargets.has(target))))
     : targets === defaults || selectionMode === 'all' ? [...PROBE_TARGETS, ...server.latency.filter(metric => isDynamicProbeTarget(metric.target)).map(metric => metric.target)] : parseProbeTargets(targets)
   const selected = ordered.flatMap(target => {
     const metric = server.latency.find(item => item.target === target)

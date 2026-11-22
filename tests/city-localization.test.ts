@@ -37,7 +37,7 @@ describe('simplified Chinese city presentation', () => {
     ['Chuncheon', 'KR', '春川 · 韩国'],
     ['Los Angeles', 'US', '洛杉矶 · 美国'],
     ['Kwun Tong', 'HK', '观塘 · 香港'],
-    ['Singapore', 'SG', '新加坡'],
+    ['Singapore', 'SG', '城市：新加坡'],
     ['Tampines', 'SG', '淡滨尼 · 新加坡'],
   ])('展示实际提供的 %s 城市和国家', (city, countryCode, expected) => {
     const server = node(city)

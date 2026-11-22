@@ -242,3 +242,7 @@ CFSM `main` 的 `theme-develop.md` 类型定义与末尾展示约定已公开 No
 ## v1.2.4 默认分组与完整监测
 
 仍仅使用现有公开 CFSM 端点；POST /api/theme_options 完整快照增为 56 项，新增 probeDefaultFamily 与 hideProbeGroupNames。无新主题管理端点。
+
+## v1.2.5 分组可用性
+
+卡片和详情的首选族回退同时使用所属站点目录、可达性标志、已验证动态 metrics 与主题勾选。false/缺失目标不构成已配置线路，null 超时线路仍保留；不会因 IPv4 能力存在却没有 IPv4 数据而遮蔽真实 IPv6 数据。接口和请求次数不变。

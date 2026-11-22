@@ -55,3 +55,7 @@
 ## v1.2.4 默认分组与完整监测
 
 新增 probeDefaultFamily 与 hideProbeGroupNames，进入 defaults/backend/local 三层及完整 56 项快照。默认 auto／false；只影响首页。弹窗忽略首页勾选与首选族，保留完整目录及组内排序。
+
+## v1.2.5 首选分组回退
+
+probeDefaultFamily 在具备网络能力且实际已采集、主题可见的分组中选择首选族。后台 manual 关闭 IPv4 或主题手动只显示 IPv6 时，优先 IPv4 回退 IPv6；反向同理。probeTargets 手动空列表仍明确隐藏。没有增加设置，完整快照仍为 56 项。

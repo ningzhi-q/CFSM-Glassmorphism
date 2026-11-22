@@ -132,4 +132,18 @@ describe('分组自动匹配与组内显示', () => {
     expect(rows.find(row => row.target === 'p_c')).toMatchObject({ latency: {value: null}, loss: {value: null} })
   })
 
+  it('双栈有能力但只配置 IPv6 时，优先 IPv4 回退到已配置的 IPv6', () => {
+    const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ip_v4: '1', ip_v6: '1', probes: { p_c: samples.p_c, p_d: samples.p_d } }, source, ts), config)
+    expect(probeDisplayRows(glass, '', 'multiple', 2, ts, 'auto', 'ipv4').map(row => row.target)).toEqual(['p_c', 'p_d'])
+    expect(probeDisplayRows(glass, 'p_d\np_c', 'multiple', 2, ts, 'manual', 'ipv4').map(row => row.target)).toEqual(['p_d', 'p_c'])
+  })
+
+  it('手动展示只勾选 IPv6 时按可见组回退，全部取消仍隐藏；反向优先同样生效', () => {
+    const glass = toGlassServer(normalizeServer({ id: 's', timestamp: ts, ip_v4: '1', ip_v6: '1', probes: samples }, source, ts), config)
+    expect(probeDisplayRows(glass, 'p_d\np_c', 'multiple', 2, ts, 'manual', 'ipv4').map(row => row.target)).toEqual(['p_d', 'p_c'])
+    expect(probeDisplayRows(glass, '', 'multiple', 2, ts, 'manual', 'ipv4')).toEqual([])
+    const v4 = { ...glass, latency: glass.latency.filter(row => row.target === 'p_a' || row.target === 'p_b') }
+    expect(probeDisplayRows(v4, '', 'multiple', 2, ts, 'auto', 'ipv6').map(row => row.target)).toEqual(['p_a', 'p_b'])
+  })
+
 })
